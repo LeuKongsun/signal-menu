@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  parseTelegramChatIds,
+  rememberOrderCopies,
+  sendOrderMessage,
+  type OrderCopy,
+} from "@/lib/telegram";
 
 interface OrderItemInput {
   nameKh: string;
@@ -93,10 +99,10 @@ export async function POST(req: NextRequest) {
     };
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
+    const chatIds = parseTelegramChatIds(process.env.TELEGRAM_CHAT_ID);
 
     // If Telegram credentials are not yet added, simulate success and log to console
-    if (!botToken || !chatId) {
+    if (!botToken || chatIds.length === 0) {
       console.log("\n================ [SIGNAL ORDER RECEIVED (TEST MODE)] ================");
       console.log(caption.replace(/<[^>]+>/g, ""));
       console.log(`Receipt attached: ${receiptFile ? receiptFile.name : "None"}`);
@@ -111,48 +117,54 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Send to Telegram
-    if (receiptFile && receiptFile.size > 0) {
-      const tgFormData = new FormData();
-      tgFormData.append("chat_id", chatId);
-      tgFormData.append("photo", receiptFile, receiptFile.name || "receipt.jpg");
-      tgFormData.append("caption", caption);
-      tgFormData.append("parse_mode", "HTML");
-      tgFormData.append("reply_markup", JSON.stringify(inlineKeyboard));
+    const photo =
+      receiptFile && receiptFile.size > 0
+        ? {
+            bytes: new Uint8Array(await receiptFile.arrayBuffer()),
+            name: receiptFile.name || "receipt.jpg",
+            type: receiptFile.type || "image/jpeg",
+          }
+        : null;
 
-      const res = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-        method: "POST",
-        body: tgFormData,
+    const sentCopies: OrderCopy[] = [];
+    const failures: string[] = [];
+
+    for (const chatId of chatIds) {
+      const data = await sendOrderMessage({
+        botToken,
+        chatId,
+        text: caption,
+        replyMarkup: inlineKeyboard,
+        photo,
       });
 
-      const data = await res.json();
-      if (!data.ok) {
-        console.error("Telegram sendPhoto failed:", data);
-        return NextResponse.json(
-          { success: false, error: data.description || "Failed to send receipt to Telegram" },
-          { status: 500 }
-        );
+      if (!data.ok || !data.result) {
+        console.error(`Telegram send failed for chat ${chatId}:`, data);
+        failures.push(data.description || `Failed to send order to chat ${chatId}`);
+        continue;
       }
-    } else {
-      const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: caption,
-          parse_mode: "HTML",
-          reply_markup: inlineKeyboard,
-        }),
-      });
 
-      const data = await res.json();
-      if (!data.ok) {
-        console.error("Telegram sendMessage failed:", data);
-        return NextResponse.json(
-          { success: false, error: data.description || "Failed to send order to Telegram" },
-          { status: 500 }
-        );
-      }
+      sentCopies.push({
+        chatId,
+        messageId: data.result.message_id,
+        isPhoto: Boolean(photo),
+      });
+    }
+
+    if (sentCopies.length === 0) {
+      return NextResponse.json(
+        { success: false, error: failures[0] || "Failed to send order to Telegram" },
+        { status: 500 }
+      );
+    }
+
+    rememberOrderCopies(orderNumber, sentCopies);
+
+    if (failures.length > 0) {
+      console.error(
+        `Order ${orderNumber} reached ${sentCopies.length}/${chatIds.length} chats:`,
+        failures
+      );
     }
 
     return NextResponse.json({

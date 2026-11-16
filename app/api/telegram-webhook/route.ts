@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { copiesForUpdate, editOrderMessage } from "@/lib/telegram";
 
 interface InlineButton {
   text: string;
@@ -105,32 +106,24 @@ export async function POST(req: NextRequest) {
       updatedText = `${newStatusText}\n\n${updatedText}`;
     }
 
-    // 3. Edit the message in Telegram
-    if (isPhoto) {
-      await fetch(`https://api.telegram.org/bot${botToken}/editMessageCaption`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          message_id: messageId,
-          caption: updatedText,
-          parse_mode: "HTML",
-          reply_markup: newKeyboard,
-        }),
-      });
-    } else {
-      await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          message_id: messageId,
-          text: updatedText,
-          parse_mode: "HTML",
-          reply_markup: newKeyboard,
-        }),
-      });
-    }
+    // 3. Edit every copy of this order (one message per admin or seller chat)
+    const targets = copiesForUpdate(orderNumber, {
+      chatId,
+      messageId,
+      isPhoto,
+    });
+
+    await Promise.all(
+      targets.map(async (copy) => {
+        const result = await editOrderMessage(botToken, copy, updatedText, newKeyboard);
+        if (!result.ok && result.description !== "Bad Request: message is not modified") {
+          console.error(
+            `Failed to update order ${orderNumber} in chat ${copy.chatId}:`,
+            result.description
+          );
+        }
+      })
+    );
 
     return NextResponse.json({ ok: true, status: action, orderNumber });
   } catch (err: unknown) {
