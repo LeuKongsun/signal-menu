@@ -379,11 +379,11 @@ export function CheckoutModal({
 
                   {/* ABA QR Code Card */}
                   <div className="flex flex-col items-center">
-                    <div className="relative w-48 sm:w-56 bg-white p-2 rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+                    <div className="relative w-52 sm:w-60 bg-white p-2 rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
                       <img
-                        src="/aba-qr.svg"
+                        src="/aba-qr.jpg"
                         alt="SIGNAL ABA KHQR"
-                        className="w-full h-auto object-contain"
+                        className="w-full h-auto object-contain rounded-xl"
                       />
                     </div>
 
