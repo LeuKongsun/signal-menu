@@ -11,6 +11,7 @@ import {
   Check,
   Loader2,
   AlertCircle,
+  ExternalLink,
 } from "lucide-react";
 import { TrayItem } from "./OrderTray";
 
@@ -46,6 +47,9 @@ export function CheckoutModal({
     process.env.NEXT_PUBLIC_ABA_ACCOUNT_NAME || "SIGNAL CAFE";
   const abaAccNumber =
     process.env.NEXT_PUBLIC_ABA_ACCOUNT_NUMBER || "000 123 456";
+  const abaPayLink =
+    process.env.NEXT_PUBLIC_ABA_PAY_LINK ||
+    "https://pay.ababank.com/oRF8/ct9mjwy8";
 
   const totalCount = tray.reduce((sum, i) => sum + i.quantity, 0);
   const totalUsd = tray.reduce((sum, i) => sum + i.price.usd * i.quantity, 0);
@@ -377,17 +381,38 @@ export function CheckoutModal({
                     </div>
                   </div>
 
-                  {/* ABA QR Code Card */}
+                  {/* ABA QR Code Card & Direct App Link */}
                   <div className="flex flex-col items-center">
-                    <div className="relative w-52 sm:w-60 bg-white p-2 rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+                    <a
+                      href={abaPayLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group/qr block relative w-52 sm:w-60 bg-white p-2 rounded-2xl shadow-sm border border-stone-200 hover:border-[#003755] hover:shadow-md transition-all overflow-hidden"
+                      title="Tap QR to open in ABA Mobile"
+                    >
                       <img
                         src="/aba-qr.jpg"
                         alt="SIGNAL ABA KHQR"
                         className="w-full h-auto object-contain rounded-xl"
                       />
-                    </div>
+                      <div className="absolute inset-x-2 bottom-2 bg-[#003755]/95 backdrop-blur-xs text-white text-[11px] font-bold py-1.5 px-2 text-center rounded-b-xl flex items-center justify-center gap-1.5 opacity-90 group-hover/qr:opacity-100 transition-opacity">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Tap QR to Open ABA</span>
+                      </div>
+                    </a>
 
-                    {/* Account manual copy */}
+                    {/* Direct Button for Mobile Users */}
+                    <a
+                      href={abaPayLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 w-full max-w-xs py-2.5 px-4 rounded-xl bg-[#003755] hover:bg-[#00263d] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Open in ABA Mobile App (បើកក្នុង ABA)</span>
+                    </a>
+
+                    {/* Account manual copy fallback */}
                     <div className="mt-2.5 flex items-center gap-1.5 text-xs text-stone-600 bg-white px-3 py-1.5 rounded-xl border border-stone-200 shadow-2xs">
                       <span>ABA: {abaAccNumber} ({abaAccName})</span>
                       <button
