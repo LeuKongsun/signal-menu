@@ -4,6 +4,7 @@ import {
   editOrderMessage,
   escapeHtml,
   mergeCopies,
+  sendOrderMessage,
   sendTelegramText,
   type InlineKeyboard,
 } from "@/lib/telegram";
@@ -14,6 +15,7 @@ import {
   customerStatusText,
   staffOrderText,
 } from "@/lib/orderMessages";
+import { renderStatusCard } from "@/lib/statusCard";
 
 const ACTION_STATUS: Record<string, OrderStatus> = {
   confirm: "preparing",
@@ -191,7 +193,24 @@ export async function POST(req: NextRequest) {
 
       const text = customerStatusText(record);
       if (text) {
-        const sent = await sendTelegramText(botToken, customerChatId, text, undefined, receiptId);
+        let card: Uint8Array | null = null;
+        if (record.status === "preparing" || record.status === "ready") {
+          try {
+            card = await renderStatusCard(record, record.status);
+          } catch (err) {
+            console.error(`Could not render status card for ${orderNumber}:`, err);
+          }
+        }
+
+        const sent = await sendOrderMessage({
+          botToken,
+          chatId: String(customerChatId),
+          text,
+          photo: card
+            ? { bytes: card, name: `${orderNumber}-${record.status}.jpg`, type: "image/jpeg" }
+            : null,
+          replyToMessageId: receiptId,
+        });
         if (!sent.ok) {
           console.warn(`Could not notify customer for ${orderNumber}:`, sent.description);
         }

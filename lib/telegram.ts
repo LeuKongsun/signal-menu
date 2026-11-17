@@ -133,10 +133,11 @@ export async function sendOrderMessage(options: {
   botToken: string;
   chatId: string;
   text: string;
-  replyMarkup: InlineKeyboard;
+  replyMarkup?: InlineKeyboard;
   photo?: { bytes: Uint8Array; name: string; type: string } | null;
+  replyToMessageId?: number;
 }): Promise<TelegramResult> {
-  const { botToken, chatId, text, replyMarkup, photo } = options;
+  const { botToken, chatId, text, replyMarkup, photo, replyToMessageId } = options;
 
   if (photo) {
     const form = new FormData();
@@ -148,7 +149,13 @@ export async function sendOrderMessage(options: {
     );
     form.append("caption", text);
     form.append("parse_mode", "HTML");
-    form.append("reply_markup", JSON.stringify(replyMarkup));
+    if (replyMarkup) form.append("reply_markup", JSON.stringify(replyMarkup));
+    if (replyToMessageId) {
+      form.append(
+        "reply_parameters",
+        JSON.stringify({ message_id: replyToMessageId, allow_sending_without_reply: true })
+      );
+    }
 
     const res = await fetch(`${TELEGRAM_API}/bot${botToken}/sendPhoto`, {
       method: "POST",
@@ -157,7 +164,7 @@ export async function sendOrderMessage(options: {
     return res.json();
   }
 
-  return sendTelegramText(botToken, chatId, text, replyMarkup);
+  return sendTelegramText(botToken, chatId, text, replyMarkup, replyToMessageId);
 }
 
 export function editOrderMessage(

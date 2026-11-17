@@ -1,22 +1,12 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { OrderRecord } from "@/lib/orderStore";
+import { IMAGE_FONT_FAMILY, loadImageFonts } from "@/lib/imageFonts";
 
 const WIDTH = 720;
 const INK = "#2A1B14";
 const MUTED = "#8A7B70";
 const ACCENT = "#E8A33D";
 const BRAND = "#8E583C";
-
-// Satori can't shape Khmer (stacked consonants and pre-base vowels come out wrong),
-// so the image stays in English; the Khmer font only supplies the ៛ sign.
-const fontDir = join(process.cwd(), "assets/fonts");
-const fontsPromise = Promise.all([
-  readFile(join(fontDir, "PlusJakartaSans-Medium.ttf")),
-  readFile(join(fontDir, "PlusJakartaSans-ExtraBold.ttf")),
-  readFile(join(fontDir, "KantumruyPro-Bold.ttf")),
-]);
 
 function Divider() {
   return (
@@ -59,7 +49,7 @@ function Row({
 
 /** Renders the customer's receipt as a PNG for sending through Telegram. */
 export async function renderReceiptImage(order: OrderRecord): Promise<Uint8Array> {
-  const [jakarta, jakartaBold, riel] = await fontsPromise;
+  const fonts = await loadImageFonts();
 
   const placedAt = new Date(order.createdAt);
   const date = placedAt.toLocaleDateString("en-GB", {
@@ -86,7 +76,7 @@ export async function renderReceiptImage(order: OrderRecord): Promise<Uint8Array
           height: "100%",
           padding: 36,
           background: "#F3EDE6",
-          fontFamily: "Jakarta, Riel",
+          fontFamily: IMAGE_FONT_FAMILY,
         }}
       >
         <div
@@ -188,11 +178,7 @@ export async function renderReceiptImage(order: OrderRecord): Promise<Uint8Array
     {
       width: WIDTH,
       height,
-      fonts: [
-        { name: "Jakarta", data: jakarta, weight: 500, style: "normal" },
-        { name: "Jakarta", data: jakartaBold, weight: 800, style: "normal" },
-        { name: "Riel", data: riel, weight: 800, style: "normal" },
-      ],
+      fonts,
     }
   );
 
