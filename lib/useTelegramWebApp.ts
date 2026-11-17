@@ -28,6 +28,8 @@ export type TelegramWebApp = {
   openLink(url: string): void;
   setHeaderColor(color: string): void;
   setBackgroundColor(color: string): void;
+  enableClosingConfirmation(): void;
+  disableClosingConfirmation(): void;
   MainButton: BottomButton;
   BackButton: {
     show(): void;

@@ -88,6 +88,12 @@ export function MenuApp() {
     return () => back.offClick(action);
   }, [tg, isTrayOpen, isCheckoutModalOpen]);
 
+  useEffect(() => {
+    if (!tg || !tg.isVersionAtLeast("6.2")) return;
+    if (trayCount > 0) tg.enableClosingConfirmation();
+    else tg.disableClosingConfirmation();
+  }, [tg, trayCount]);
+
   // Cart / Tray handlers
   const handleAddToCart = (
     item: MenuItem,
@@ -123,6 +129,32 @@ export function MenuApp() {
         .filter(Boolean) as TrayItem[]
     );
   };
+
+  const handleRemoveOne = (item: MenuItem, size: "regular" | "large") => {
+    if (tg?.isVersionAtLeast("6.1")) tg.HapticFeedback.impactOccurred("light");
+    handleUpdateQuantity(`${item.id}-${size}`, -1);
+  };
+
+  const quantitiesFor = (item: MenuItem) => {
+    const count = (size: "regular" | "large") =>
+      tray.find((entry) => entry.cartId === `${item.id}-${size}`)?.quantity ?? 0;
+    return { regular: count("regular"), large: count("large") };
+  };
+
+  const renderGrid = (items: MenuItem[]) => (
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-x-3 gap-y-6">
+      {items.map((item) => (
+        <MenuItemCard
+          key={item.id}
+          item={item}
+          quantities={quantitiesFor(item)}
+          onAddToCart={handleAddToCart}
+          onRemoveOne={handleRemoveOne}
+          currencyMode={currencyMode}
+        />
+      ))}
+    </div>
+  );
 
   const handleRemoveItem = (cartId: string) => {
     setTray((prev) => prev.filter((entry) => entry.cartId !== cartId));
@@ -205,38 +237,15 @@ export function MenuApp() {
 
               return (
                 <section key={cat.key} id={cat.key} className="scroll-mt-20">
-                  {/* Category Header */}
-                  <div className="flex items-center justify-between gap-4 mb-4 pb-2 border-b border-stone-200">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="font-khmer font-bold text-stone-900 text-xl md:text-2xl">
-                          {cat.nameKh}
-                        </h2>
-                        <span className="text-sm md:text-base font-extrabold uppercase text-[#8E583C] tracking-wide">
-                          | {cat.nameEn}
-                        </span>
-                      </div>
-                      <p className="text-xs text-stone-500 mt-0.5">
-                        {cat.description}
-                      </p>
-                    </div>
-
-                    <span className="text-xs font-bold text-stone-400 bg-stone-100 px-2.5 py-1 rounded-full">
-                      {categoryItems.length} items
+                  <h2 className="flex items-baseline gap-2 mb-3">
+                    <span className="font-khmer font-bold text-stone-900 text-lg">
+                      {cat.nameKh}
                     </span>
-                  </div>
-
-                  {/* Cards Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {categoryItems.map((item) => (
-                      <MenuItemCard
-                        key={item.id}
-                        item={item}
-                        onAddToCart={handleAddToCart}
-                        currencyMode={currencyMode}
-                      />
-                    ))}
-                  </div>
+                    <span className="text-[11px] font-extrabold uppercase text-[#8E583C] tracking-wider">
+                      {cat.nameEn}
+                    </span>
+                  </h2>
+                  {renderGrid(categoryItems)}
                 </section>
               );
             })}
@@ -269,16 +278,7 @@ export function MenuApp() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredItems.map((item) => (
-                <MenuItemCard
-                  key={item.id}
-                  item={item}
-                  onAddToCart={handleAddToCart}
-                  currencyMode={currencyMode}
-                />
-              ))}
-            </div>
+            {renderGrid(filteredItems)}
           </div>
         )}
       </main>
