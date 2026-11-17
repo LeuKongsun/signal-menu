@@ -5,6 +5,7 @@ import {
   sendOrderMessage,
   type OrderCopy,
 } from "@/lib/telegram";
+import { createOrder } from "@/lib/orderStore";
 
 interface OrderItemInput {
   nameKh: string;
@@ -43,6 +44,20 @@ export async function POST(req: NextRequest) {
     // Generate official Order Number on server
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const orderNumber = `SIG-${randomSuffix}`;
+
+    // Store order in memory so the status page can poll it
+    const now = new Date().toISOString();
+    createOrder({
+      orderNumber,
+      customerName: order.customerName,
+      status: "pending",
+      items: order.items,
+      totalRiel: order.totalRiel,
+      totalUsd: order.totalUsd,
+      paymentMethod: order.paymentMethod,
+      createdAt: now,
+      updatedAt: now,
+    });
 
     // Format item lines
     const itemsText = order.items

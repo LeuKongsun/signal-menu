@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { copiesForUpdate, editOrderMessage } from "@/lib/telegram";
+import { updateOrderStatus } from "@/lib/orderStore";
 
 interface InlineButton {
   text: string;
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
     if (action === "confirm") {
       newStatusText = `🟡 <b>Status: PREPARING DRINKS (Confirmed by ${staffName})</b>`;
       alertPopup = `Order #${orderNumber} confirmed by ${staffName}! Preparing drinks...`;
+      updateOrderStatus(orderNumber, "preparing");
       newKeyboard = {
         inline_keyboard: [
           [
@@ -77,10 +79,12 @@ export async function POST(req: NextRequest) {
     } else if (action === "pickup") {
       newStatusText = `🟢 <b>Status: COMPLETED / PICKED UP (by ${staffName})</b>`;
       alertPopup = `Order #${orderNumber} marked as Ready & Picked Up! 🎉`;
+      updateOrderStatus(orderNumber, "ready");
       newKeyboard = { inline_keyboard: [] }; // Remove buttons once picked up
     } else if (action === "cancel") {
       newStatusText = `❌ <b>Status: CANCELLED (by ${staffName})</b>`;
       alertPopup = `Order #${orderNumber} was cancelled.`;
+      updateOrderStatus(orderNumber, "cancelled");
       newKeyboard = { inline_keyboard: [] }; // Remove buttons once cancelled
     }
 
