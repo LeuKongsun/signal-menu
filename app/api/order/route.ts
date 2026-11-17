@@ -21,6 +21,7 @@ import {
   staffOrderText,
 } from "@/lib/orderMessages";
 import { renderReceiptImage } from "@/lib/receiptImage";
+import { ABA_PAYMENT_ENABLED } from "@/lib/aba";
 
 interface OrderItemInput {
   nameKh: string;
@@ -78,6 +79,13 @@ export async function POST(req: NextRequest) {
       if (!telegramUser) {
         console.warn("Order sent with Telegram data that failed verification; treating it as a web order.");
       }
+    }
+
+    if (order.paymentMethod === "aba" && !ABA_PAYMENT_ENABLED) {
+      return NextResponse.json(
+        { success: false, error: "ABA payment is not available right now. Please pay cash at pickup." },
+        { status: 400 }
+      );
     }
 
     const hasReceipt = Boolean(receiptFile && receiptFile.size > 0);

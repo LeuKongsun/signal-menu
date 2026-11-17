@@ -261,7 +261,7 @@ export function OrderTray({
                   }}
                   className="w-full py-3 px-4 rounded-2xl bg-[#8E583C] text-white font-extrabold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/25 flex items-center justify-center gap-2"
                 >
-                  <span>Place Order &amp; Pay (កុម្ម៉ង់ និងទូទាត់)</span>
+                  <span>Place Order (កុម្ម៉ង់)</span>
                 </button>
               )}
 

@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 import { TrayItem } from "./OrderTray";
 import type { TelegramWebApp } from "@/lib/useTelegramWebApp";
-import { ABA_ACCOUNT_NAME, ABA_ACCOUNT_NUMBER, ABA_PAY_LINK } from "@/lib/aba";
+import {
+  ABA_ACCOUNT_NAME,
+  ABA_ACCOUNT_NUMBER,
+  ABA_PAY_LINK,
+  ABA_PAYMENT_ENABLED,
+} from "@/lib/aba";
 
 /**
  * Shrinks a photo to a JPEG no larger than `maxSide` pixels, keeping uploads well
@@ -63,7 +68,9 @@ export function CheckoutModal({
   );
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"aba" | "cash">("aba");
+  const [paymentMethod, setPaymentMethod] = useState<"aba" | "cash">(
+    ABA_PAYMENT_ENABLED ? "aba" : "cash"
+  );
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [isPreparingReceipt, setIsPreparingReceipt] = useState(false);
@@ -228,7 +235,11 @@ export function CheckoutModal({
             </div>
             <div>
               <h3 className="font-bold text-stone-900 text-base leading-tight">
-                {completedOrder ? "Order Confirmed" : "Confirm & Pay"}
+                {completedOrder
+                  ? "Order Confirmed"
+                  : ABA_PAYMENT_ENABLED
+                    ? "Confirm & Pay"
+                    : "Confirm Order"}
               </h3>
               <p className="text-xs text-stone-500 font-khmer">
                 {completedOrder
@@ -418,59 +429,61 @@ export function CheckoutModal({
                   2. Payment Method (វិធីសាស្ត្រទូទាត់)
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("aba")}
-                    className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all ${
-                      paymentMethod === "aba"
-                        ? "border-[#8E583C] bg-amber-50/50 ring-1 ring-[#8E583C]"
-                        : "border-stone-200 hover:bg-stone-50"
-                    }`}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                {ABA_PAYMENT_ENABLED && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("aba")}
+                      className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all ${
                         paymentMethod === "aba"
-                          ? "bg-[#8E583C] text-white"
-                          : "bg-stone-100 text-stone-600"
+                          ? "border-[#8E583C] bg-amber-50/50 ring-1 ring-[#8E583C]"
+                          : "border-stone-200 hover:bg-stone-50"
                       }`}
                     >
-                      <QrCode className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-stone-900 leading-tight">
-                        ABA KHQR
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                          paymentMethod === "aba"
+                            ? "bg-[#8E583C] text-white"
+                            : "bg-stone-100 text-stone-600"
+                        }`}
+                      >
+                        <QrCode className="w-4 h-4" />
                       </div>
-                      <div className="text-[10px] text-stone-500">Scan & Upload</div>
-                    </div>
-                  </button>
+                      <div>
+                        <div className="font-bold text-xs text-stone-900 leading-tight">
+                          ABA KHQR
+                        </div>
+                        <div className="text-[10px] text-stone-500">Scan & Upload</div>
+                      </div>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("cash")}
-                    className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all ${
-                      paymentMethod === "cash"
-                        ? "border-[#8E583C] bg-amber-50/50 ring-1 ring-[#8E583C]"
-                        : "border-stone-200 hover:bg-stone-50"
-                    }`}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("cash")}
+                      className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all ${
                         paymentMethod === "cash"
-                          ? "bg-[#8E583C] text-white"
-                          : "bg-stone-100 text-stone-600"
+                          ? "border-[#8E583C] bg-amber-50/50 ring-1 ring-[#8E583C]"
+                          : "border-stone-200 hover:bg-stone-50"
                       }`}
                     >
-                      <Banknote className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-stone-900 leading-tight">
-                        Cash on Pickup
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                          paymentMethod === "cash"
+                            ? "bg-[#8E583C] text-white"
+                            : "bg-stone-100 text-stone-600"
+                        }`}
+                      >
+                        <Banknote className="w-4 h-4" />
                       </div>
-                      <div className="text-[10px] text-stone-500">Pay at counter</div>
-                    </div>
-                  </button>
-                </div>
+                      <div>
+                        <div className="font-bold text-xs text-stone-900 leading-tight">
+                          Cash on Pickup
+                        </div>
+                        <div className="text-[10px] text-stone-500">Pay at counter</div>
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Step 3: Payment Details (QR & Upload) */}
