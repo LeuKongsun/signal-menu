@@ -17,6 +17,24 @@ import { CheckoutModal } from "./CheckoutModal";
 import { Coffee, SearchX } from "lucide-react";
 import { useTelegramWebApp } from "@/lib/useTelegramWebApp";
 
+const TRAY_STORAGE_KEY = "signal-tray-v1";
+type StoredTrayEntry = { id: string; size: "regular" | "large"; quantity: number };
+
+/** Rebuilds the saved tray from the current menu, so stale prices or removed drinks drop out. */
+function loadSavedTray(): TrayItem[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TRAY_STORAGE_KEY) || "[]") as StoredTrayEntry[];
+    return saved.flatMap(({ id, size, quantity }) => {
+      const item = MENU_ITEMS.find((m) => m.id === id);
+      const price = size === "large" ? item?.prices.large : item?.prices.regular;
+      if (!item || !price || !(quantity > 0)) return [];
+      return [{ cartId: `${id}-${size}`, item, size, price, quantity }];
+    });
+  } catch {
+    return [];
+  }
+}
+
 export function MenuApp() {
   const [selectedCategory, setSelectedCategory] = useState<
     MenuCategoryKey | "all"
@@ -30,6 +48,30 @@ export function MenuApp() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
   const tg = useTelegramWebApp();
+
+  const [trayLoaded, setTrayLoaded] = useState(false);
+
+  // Telegram can reload the Mini App while the customer is paying in ABA, so keep the tray on the device
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      setTray(loadSavedTray());
+      setTrayLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!trayLoaded) return;
+    try {
+      const entries: StoredTrayEntry[] = tray.map(({ item, size, quantity }) => ({
+        id: item.id,
+        size,
+        quantity,
+      }));
+      localStorage.setItem(TRAY_STORAGE_KEY, JSON.stringify(entries));
+    } catch {
+      // Storage can be unavailable (private mode); the tray still works in memory
+    }
+  }, [tray, trayLoaded]);
 
   const trayCount = tray.reduce((sum, i) => sum + i.quantity, 0);
   const trayRiel = tray.reduce((sum, i) => sum + i.price.riel * i.quantity, 0);

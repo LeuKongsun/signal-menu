@@ -6,6 +6,7 @@ export type InlineKeyboard = {
   inline_keyboard: (
     | { text: string; callback_data: string }
     | { text: string; web_app: { url: string } }
+    | { text: string; url: string }
   )[][];
 };
 
@@ -110,6 +111,31 @@ export function sendTelegramText(
     text,
     parse_mode: "HTML",
     ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    ...(replyToMessageId
+      ? {
+          reply_parameters: {
+            message_id: replyToMessageId,
+            allow_sending_without_reply: true,
+          },
+        }
+      : {}),
+  });
+}
+
+/** Re-sends a photo or file Telegram already has (by file_id), without uploading it again. */
+export function sendTelegramFileById(
+  botToken: string,
+  chatId: string | number,
+  kind: "photo" | "document",
+  fileId: string,
+  caption: string,
+  replyToMessageId?: number
+): Promise<TelegramResult> {
+  return callTelegram(botToken, kind === "photo" ? "sendPhoto" : "sendDocument", {
+    chat_id: chatId,
+    [kind]: fileId,
+    caption,
+    parse_mode: "HTML",
     ...(replyToMessageId
       ? {
           reply_parameters: {
