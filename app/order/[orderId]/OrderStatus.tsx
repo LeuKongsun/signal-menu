@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Coffee, Clock, XCircle, Loader2, ChevronLeft } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { useTelegramWebApp } from "@/lib/useTelegramWebApp";
 
 type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "cancelled";
 
@@ -27,29 +28,55 @@ interface OrderData {
   updatedAt: string;
 }
 
-// --- Status config ---
-const STATUS_STEPS: { key: OrderStatus; label: string; labelKh: string; icon: string }[] = [
-  { key: "pending", label: "Order Received", labelKh: "ទទួលបានការបញ្ជាទិញ", icon: "📋" },
-  { key: "preparing", label: "Preparing Your Drinks", labelKh: "កំពុងត្រៀម", icon: "☕" },
-  { key: "ready", label: "Ready for Pickup!", labelKh: "រួចរាល់! សូមមករับ", icon: "🎉" },
-];
+const STEPS = ["Received", "Making", "Ready"];
 
-function getStepIndex(status: OrderStatus): number {
-  if (status === "cancelled") return -1;
-  const idx = STATUS_STEPS.findIndex((s) => s.key === status);
-  return idx === -1 ? 0 : idx;
-}
+const STATUS_VIEW: Record<
+  OrderStatus,
+  { emoji: string; title: string; titleKh: string; hint: string; step: number }
+> = {
+  pending: {
+    emoji: "🧾",
+    title: "Order received",
+    titleKh: "កំពុងរង់ចាំការបញ្ជាក់",
+    hint: "Waiting for the barista to confirm.",
+    step: 0,
+  },
+  confirmed: {
+    emoji: "☕",
+    title: "Making your drinks",
+    titleKh: "កំពុងរៀបចំភេសជ្ជៈរបស់អ្នក",
+    hint: "We'll let you know when it's ready.",
+    step: 1,
+  },
+  preparing: {
+    emoji: "☕",
+    title: "Making your drinks",
+    titleKh: "កំពុងរៀបចំភេសជ្ជៈរបស់អ្នក",
+    hint: "We'll let you know when it's ready.",
+    step: 1,
+  },
+  ready: {
+    emoji: "🎉",
+    title: "Ready for pickup!",
+    titleKh: "រួចរាល់ហើយ សូមមកទទួលនៅបញ្ជរ",
+    hint: "Please collect your drinks at the counter.",
+    step: 2,
+  },
+  cancelled: {
+    emoji: "❌",
+    title: "Order cancelled",
+    titleKh: "ការកម្ម៉ង់ត្រូវបានលុបចោល",
+    hint: "Please speak to our staff if you have any questions.",
+    step: -1,
+  },
+};
 
-// Pulse animation for active step
 const POLL_INTERVAL_MS = 3000;
 
 export function OrderStatusLoading() {
   return (
-    <div className="min-h-screen bg-[#FAF7F2] flex items-center justify-center">
-      <div className="text-center space-y-3">
-        <Loader2 className="w-10 h-10 text-[#8E583C] animate-spin mx-auto" />
-        <p className="text-stone-500 text-sm font-medium">Loading order status…</p>
-      </div>
+    <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-[#E8A33D] animate-spin" />
     </div>
   );
 }
@@ -57,11 +84,11 @@ export function OrderStatusLoading() {
 export function OrderStatus() {
   const params = useParams();
   const orderId = (params.orderId as string).toUpperCase();
+  const tg = useTelegramWebApp();
 
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   // Ref so fetchStatus stays stable (no orderId in dep array)
   const orderIdRef = useRef(orderId);
@@ -81,14 +108,13 @@ export function OrderStatus() {
         return;
       }
       setOrder(data);
-      setLastUpdated(new Date());
       setNotFound(false);
       setLoading(false);
     } catch {
       // Network error — keep showing last known state
       setLoading(false);
     }
-  }, []); // stable — reads orderId via ref
+  }, []);
 
   // Initial fetch: setTimeout(0) ensures setState runs in async callback, not synchronously in effect body
   useEffect(() => {
@@ -105,235 +131,155 @@ export function OrderStatus() {
     return () => clearInterval(timer);
   }, [fetchStatus, order?.status]);
 
-  // ---- Render: Loading ----
+  useEffect(() => {
+    if (!tg) return;
+    const button = tg.MainButton;
+    const close = () => tg.close();
+    button.setParams({
+      text: "BACK TO CHAT",
+      color: "#8E583C",
+      text_color: "#FFFFFF",
+      is_active: true,
+      is_visible: true,
+    });
+    button.onClick(close);
+    return () => {
+      button.offClick(close);
+      button.hide();
+    };
+  }, [tg]);
+
   if (loading) {
     return <OrderStatusLoading />;
   }
 
-  // ---- Render: Not found ----
-  if (notFound) {
+  if (notFound || !order) {
     return (
-      <div className="min-h-screen bg-[#FAF7F2] flex items-center justify-center p-6">
-        <div className="text-center space-y-4 max-w-xs">
-          <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center mx-auto text-3xl">
-            🤔
-          </div>
-          <h2 className="text-lg font-black text-stone-900">Order not found</h2>
-          <p className="text-sm text-stone-500">
-            We couldn&apos;t find order <strong className="text-[#8E583C]">{orderId}</strong>.
-            Please check the order number, or ask the barista.
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-6">
+        <div className="text-center max-w-xs">
+          <div className="text-5xl mb-3">🤔</div>
+          <h2 className="text-lg font-extrabold text-stone-900">Order not found</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            We couldn&apos;t find order <strong className="text-stone-800">{orderId}</strong>.
+            Please check the number or ask the barista.
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#8E583C] hover:underline"
+            className="mt-5 inline-flex h-10 items-center px-5 rounded-lg bg-[#E8A33D] text-white text-xs font-extrabold uppercase tracking-wide"
           >
-            <ChevronLeft className="w-4 h-4" /> Back to Menu
+            Back to menu
           </Link>
         </div>
       </div>
     );
   }
 
-  if (!order) return null;
-
+  const view = STATUS_VIEW[order.status];
   const isCancelled = order.status === "cancelled";
-  const isReady = order.status === "ready";
-  const activeStep = getStepIndex(order.status);
+  const isClosed = isCancelled || order.status === "ready";
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2]">
-      {/* Top bar */}
-      <div className="bg-white border-b border-stone-200 px-4 py-3 flex items-center gap-3">
-        <Link href="/" className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors">
-          <ChevronLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black tracking-widest uppercase text-[#8E583C]">
-              SIGNAL CAFE
-            </span>
+    <div className="min-h-screen bg-[#FAF8F5] pb-10">
+      <div className="max-w-md mx-auto px-5">
+        <div className="pt-10 pb-8 text-center">
+          <div key={order.status} className="badge-pop text-6xl">
+            {view.emoji}
           </div>
-          <p className="text-xs text-stone-500">Order Tracking</p>
-        </div>
-      </div>
+          <h1
+            className={`mt-3 text-xl font-extrabold ${
+              isCancelled ? "text-[#D9534F]" : "text-stone-900"
+            }`}
+          >
+            {view.title}
+          </h1>
+          <p className="font-khmer text-sm text-stone-600">{view.titleKh}</p>
+          <p className="mt-1 text-xs text-stone-400">{view.hint}</p>
 
-      <div className="max-w-md mx-auto px-4 py-8 space-y-6">
-
-        {/* Order number badge */}
-        <div className="text-center space-y-1">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-black bg-white border border-stone-200 text-[#8E583C] tracking-widest uppercase shadow-sm">
-            {order.orderNumber}
-          </span>
-          <p className="text-sm text-stone-600">
-            Hi <strong>{order.customerName}</strong>! 👋
-          </p>
-        </div>
-
-        {/* Cancelled state */}
-        {isCancelled ? (
-          <div className="bg-white rounded-3xl border border-rose-200 p-6 text-center space-y-3 shadow-sm">
-            <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center mx-auto">
-              <XCircle className="w-9 h-9 text-rose-500" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-stone-900">Order Cancelled</h2>
-              <p className="text-sm text-stone-500 font-khmer mt-1">ការបញ្ជាទិញត្រូវបានលុប</p>
-              <p className="text-xs text-stone-400 mt-2">
-                Please speak to the barista if you have questions.
-              </p>
-            </div>
-            <Link
-              href="/"
-              className="inline-block w-full py-3 rounded-2xl bg-[#8E583C] text-white font-bold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/20"
-            >
-              Back to Menu
-            </Link>
-          </div>
-        ) : isReady ? (
-          /* Ready state — big celebration */
-          <div className="bg-white rounded-3xl border border-emerald-200 p-6 text-center space-y-3 shadow-sm animate-in zoom-in duration-300">
-            <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto text-4xl">
-              🎉
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-emerald-700">Ready for Pickup!</h2>
-              <p className="text-base font-khmer text-emerald-600 mt-1">
-                រួចរាល់! សូមមករទទួល!
-              </p>
-              <p className="text-sm text-stone-500 mt-2">
-                Your drinks are ready. Please collect them from the counter!
-              </p>
-            </div>
-            <div className="pt-2">
-              <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto" />
-            </div>
-          </div>
-        ) : (
-          /* Progress steps */
-          <div className="bg-white rounded-3xl border border-stone-200 p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-stone-700 text-center">Order Progress</h2>
-
-            <div className="space-y-3">
-              {STATUS_STEPS.map((step, idx) => {
-                const isDone = idx < activeStep;
-                const isActive = idx === activeStep;
-                const isUpcoming = idx > activeStep;
+          {!isCancelled && (
+            <div className="mt-6 grid grid-cols-3 gap-1.5">
+              {STEPS.map((step, i) => {
+                const done = i <= view.step;
+                const active = i === view.step && !isClosed;
                 return (
-                  <div key={step.key} className="flex items-center gap-3">
-                    {/* Circle indicator */}
+                  <div key={step}>
                     <div
-                      className={[
-                        "w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 transition-all duration-500",
-                        isDone
-                          ? "bg-emerald-100 text-emerald-600"
-                          : isActive
-                          ? "bg-[#8E583C]/10 text-[#8E583C] ring-2 ring-[#8E583C]/30 animate-pulse"
-                          : "bg-stone-100 text-stone-300",
-                      ].join(" ")}
+                      className={`h-1.5 rounded-full ${
+                        done ? "bg-[#E8A33D]" : "bg-stone-200"
+                      } ${active ? "animate-pulse" : ""}`}
+                    />
+                    <p
+                      className={`mt-1.5 text-[11px] font-bold ${
+                        done ? "text-stone-800" : "text-stone-400"
+                      }`}
                     >
-                      {isDone ? "✓" : step.icon}
-                    </div>
-
-                    {/* Label */}
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={[
-                          "text-sm font-semibold transition-colors",
-                          isDone
-                            ? "text-emerald-600 line-through decoration-emerald-400 decoration-1"
-                            : isActive
-                            ? "text-stone-900"
-                            : "text-stone-300",
-                        ].join(" ")}
-                      >
-                        {step.label}
-                      </p>
-                      <p
-                        className={[
-                          "text-xs font-khmer",
-                          isDone
-                            ? "text-emerald-500"
-                            : isActive
-                            ? "text-stone-500"
-                            : "text-stone-300",
-                        ].join(" ")}
-                      >
-                        {step.labelKh}
-                      </p>
-                    </div>
-
-                    {/* Active spinner */}
-                    {isActive && (
-                      <Loader2 className="w-4 h-4 text-[#8E583C] animate-spin shrink-0" />
-                    )}
-                    {isDone && (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    )}
-                    {isUpcoming && (
-                      <Clock className="w-4 h-4 text-stone-200 shrink-0" />
-                    )}
+                      {step}
+                    </p>
                   </div>
                 );
               })}
             </div>
+          )}
+        </div>
 
-            {/* Polling indicator */}
-            <p className="text-center text-[10px] text-stone-400 pt-1">
-              Auto-refreshing every {POLL_INTERVAL_MS / 1000}s •{" "}
-              Last updated {lastUpdated.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-            </p>
-          </div>
-        )}
-
-        {/* Order summary */}
-        <div className="bg-white rounded-3xl border border-stone-200 p-5 shadow-sm space-y-3">
-          <div className="flex items-center gap-2">
-            <Coffee className="w-4 h-4 text-[#8E583C]" />
-            <h3 className="text-sm font-bold text-stone-700">Your Order</h3>
+        <div className="bg-white rounded-2xl px-4 py-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-stone-900">
+              Your order
+            </h2>
+            <span className="text-xs font-bold text-stone-400">#{order.orderNumber}</span>
           </div>
 
-          <div className="space-y-2">
+          <ul className="mt-3 space-y-3">
             {order.items.map((item, idx) => (
-              <div key={idx} className="flex items-start justify-between gap-2 text-xs">
+              <li key={idx} className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <span className="font-semibold text-stone-900">
-                    {item.quantity}× {item.nameEn}
-                    {item.size ? <span className="text-stone-400"> ({item.size})</span> : null}
-                  </span>
-                  <p className="text-stone-400 font-khmer truncate">{item.nameKh}</p>
+                  <p className="text-sm font-bold text-stone-900">
+                    {item.nameEn}{" "}
+                    <span className="text-[#E8A33D]">{item.quantity}x</span>
+                  </p>
+                  <p className="text-xs text-stone-400 truncate">
+                    <span className="font-khmer">{item.nameKh}</span>
+                    {item.size ? ` · ${item.size}` : ""}
+                  </p>
                 </div>
-                <span className="text-stone-500 shrink-0 font-medium">
-                  {item.priceRiel.toLocaleString()}៛
+                <span className="shrink-0 text-sm font-semibold text-stone-800">
+                  {item.priceRiel.toLocaleString("en-US")}៛
                 </span>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
 
-          <div className="pt-1 border-t border-stone-100 flex justify-between text-sm font-black">
-            <span className="text-stone-700">Total</span>
-            <span className="text-[#8E583C]">
-              {order.totalRiel.toLocaleString()}៛{" "}
-              <span className="font-normal text-stone-400 text-xs">
-                (≈${order.totalUsd.toFixed(2)})
+          <div className="mt-4 pt-3 border-t border-stone-100 space-y-1">
+            <div className="flex justify-between text-sm font-extrabold text-stone-900">
+              <span>Total</span>
+              <span>
+                {order.totalRiel.toLocaleString("en-US")}៛{" "}
+                <span className="font-semibold text-stone-400">
+                  ${order.totalUsd.toFixed(2)}
+                </span>
               </span>
-            </span>
-          </div>
-
-          <div className="text-xs text-stone-400 flex justify-between">
-            <span>Payment</span>
-            <span className="font-medium">
-              {order.paymentMethod === "aba" ? "ABA KHQR" : "Cash on Pickup"}
-            </span>
+            </div>
+            <div className="flex justify-between text-xs text-stone-400">
+              <span>Payment</span>
+              <span>{order.paymentMethod === "aba" ? "ABA KHQR" : "Cash at pickup"}</span>
+            </div>
           </div>
         </div>
 
-        {/* Footer tip */}
-        {!isReady && !isCancelled && (
-          <p className="text-center text-xs text-stone-400 font-khmer pb-4">
-            🔖 រក្សាទំព័រនេះបើកទុក ឬបញ្ចូល URL ម្ដងទៀតដើម្បីតាមដានការបញ្ជាទិញ
-            <br />
-            <span className="not-italic text-[10px]">(Keep this page open to track your order)</span>
+        {!isClosed && (
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-stone-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Updates automatically
           </p>
+        )}
+
+        {!tg && isClosed && (
+          <Link
+            href="/"
+            className="mt-6 flex h-11 items-center justify-center rounded-xl bg-[#E8A33D] text-white text-sm font-extrabold uppercase tracking-wide"
+          >
+            Order again
+          </Link>
         )}
       </div>
     </div>

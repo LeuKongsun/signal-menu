@@ -10,6 +10,7 @@ import {
 } from "@/lib/telegram";
 import { createOrder, saveOrder, type OrderRecord } from "@/lib/orderStore";
 import {
+  customerReceiptKeyboard,
   customerReceiptText,
   PENDING_STATUS_LINE,
   staffOrderText,
@@ -186,18 +187,12 @@ export async function POST(req: NextRequest) {
         botToken,
         telegramUser.id,
         customerReceiptText(record),
-        {
-          inline_keyboard: [
-            [
-              {
-                text: "📍 Track order",
-                web_app: { url: `${req.nextUrl.origin}/order/${orderNumber}` },
-              },
-            ],
-          ],
-        }
+        customerReceiptKeyboard(record, req.nextUrl.origin)
       );
-      if (!receipt.ok) {
+      if (receipt.ok && receipt.result) {
+        record.customerReceiptMessageId = receipt.result.message_id;
+        await saveOrder(record);
+      } else {
         console.warn(`Could not message customer ${telegramUser.id}:`, receipt.description);
       }
     }

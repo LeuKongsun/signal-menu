@@ -102,13 +102,22 @@ export function sendTelegramText(
   botToken: string,
   chatId: string | number,
   text: string,
-  replyMarkup?: InlineKeyboard
+  replyMarkup?: InlineKeyboard,
+  replyToMessageId?: number
 ): Promise<TelegramResult> {
   return callTelegram(botToken, "sendMessage", {
     chat_id: chatId,
     text,
     parse_mode: "HTML",
     ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    ...(replyToMessageId
+      ? {
+          reply_parameters: {
+            message_id: replyToMessageId,
+            allow_sending_without_reply: true,
+          },
+        }
+      : {}),
   });
 }
 

@@ -8,7 +8,12 @@ import {
   type InlineKeyboard,
 } from "@/lib/telegram";
 import { getOrder, saveOrder, type OrderStatus } from "@/lib/orderStore";
-import { customerStatusText, staffOrderText } from "@/lib/orderMessages";
+import {
+  customerReceiptKeyboard,
+  customerReceiptText,
+  customerStatusText,
+  staffOrderText,
+} from "@/lib/orderMessages";
 
 const ACTION_STATUS: Record<string, OrderStatus> = {
   confirm: "preparing",
@@ -166,11 +171,26 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // 4. Tell the customer, if they ordered through the Telegram Mini App
+    // 4. Update the customer's receipt and alert them, if they ordered through the Mini App
     if (record?.customerTelegram) {
+      const customerChatId = record.customerTelegram.id;
+      const receiptId = record.customerReceiptMessageId;
+
+      if (receiptId) {
+        const edited = await editOrderMessage(
+          botToken,
+          { chatId: customerChatId, messageId: receiptId, isPhoto: false },
+          customerReceiptText(record),
+          customerReceiptKeyboard(record, req.nextUrl.origin)
+        );
+        if (!edited.ok) {
+          console.warn(`Could not update receipt for ${orderNumber}:`, edited.description);
+        }
+      }
+
       const text = customerStatusText(record);
       if (text) {
-        const sent = await sendTelegramText(botToken, record.customerTelegram.id, text);
+        const sent = await sendTelegramText(botToken, customerChatId, text, undefined, receiptId);
         if (!sent.ok) {
           console.warn(`Could not notify customer for ${orderNumber}:`, sent.description);
         }

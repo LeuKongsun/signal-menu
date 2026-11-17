@@ -22,6 +22,8 @@ export interface OrderRecord {
   paymentMethod: "aba" | "cash";
   /** Telegram user who ordered through the Mini App; the bot messages them on status changes. */
   customerTelegram?: { id: number; name: string; username?: string };
+  /** The receipt message in the customer's chat, kept up to date as the status changes. */
+  customerReceiptMessageId?: number;
   /** The order message in each admin/seller chat, so every copy can be updated together. */
   staffCopies?: OrderCopy[];
   createdAt: string; // ISO string
