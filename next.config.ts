@@ -9,7 +9,11 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   outputFileTracingIncludes: {
     "/api/order": ["./assets/fonts/**/*"],
-    "/api/telegram-webhook": ["./assets/fonts/**/*", "./public/drinks/**/*"],
+    "/api/telegram-webhook": [
+      "./assets/fonts/**/*",
+      "./public/drinks/**/*",
+      "./public/making-coffee.gif",
+    ],
   },
 };
 

@@ -140,10 +140,12 @@ export async function sendOrderMessage(options: {
   const { botToken, chatId, text, replyMarkup, photo, replyToMessageId } = options;
 
   if (photo) {
+    // GIFs sent with sendPhoto lose their animation
+    const isAnimation = photo.type === "image/gif";
     const form = new FormData();
     form.append("chat_id", chatId);
     form.append(
-      "photo",
+      isAnimation ? "animation" : "photo",
       new Blob([new Uint8Array(photo.bytes)], { type: photo.type }),
       photo.name
     );
@@ -157,7 +159,8 @@ export async function sendOrderMessage(options: {
       );
     }
 
-    const res = await fetch(`${TELEGRAM_API}/bot${botToken}/sendPhoto`, {
+    const method = isAnimation ? "sendAnimation" : "sendPhoto";
+    const res = await fetch(`${TELEGRAM_API}/bot${botToken}/${method}`, {
       method: "POST",
       body: form,
     });

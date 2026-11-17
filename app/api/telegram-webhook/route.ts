@@ -15,7 +15,7 @@ import {
   customerStatusText,
   staffOrderText,
 } from "@/lib/orderMessages";
-import { renderStatusCard } from "@/lib/statusCard";
+import { renderStatusCard, type StatusCard } from "@/lib/statusCard";
 
 const ACTION_STATUS: Record<string, OrderStatus> = {
   confirm: "preparing",
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
 
       const text = customerStatusText(record);
       if (text) {
-        let card: Uint8Array | null = null;
+        let card: StatusCard | null = null;
         if (record.status === "preparing" || record.status === "ready") {
           try {
             card = await renderStatusCard(record, record.status);
@@ -207,7 +207,11 @@ export async function POST(req: NextRequest) {
           chatId: String(customerChatId),
           text,
           photo: card
-            ? { bytes: card, name: `${orderNumber}-${record.status}.jpg`, type: "image/jpeg" }
+            ? {
+                bytes: card.bytes,
+                name: `${orderNumber}-${record.status}.${card.extension}`,
+                type: card.type,
+              }
             : null,
           replyToMessageId: receiptId,
         });
