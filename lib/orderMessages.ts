@@ -80,7 +80,8 @@ function progressLine(status: OrderStatus) {
   return PROGRESS_STEPS.map((step, i) => `${i <= current ? "✅" : "⚪"} ${step}`).join("  ·  ");
 }
 
-export function customerReceiptText(order: OrderRecord) {
+/** Receipt text; leave out the item list when it's the caption of the receipt image. */
+export function customerReceiptText(order: OrderRecord, { withItems = true } = {}) {
   const [headline, headlineKh] = RECEIPT_HEADLINES[order.status];
   return [
     `🧾 <b>SIGNAL Cafe · Order #${order.orderNumber}</b>`,
@@ -89,8 +90,7 @@ export function customerReceiptText(order: OrderRecord) {
     headlineKh,
     progressLine(order.status),
     ``,
-    itemLines(order),
-    ``,
+    ...(withItems ? [itemLines(order), ``] : []),
     `<b>Total: ${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
     `Payment: ${order.paymentMethod === "aba" ? "ABA KHQR (receipt sent)" : "Cash at pickup"}`,
   ].join("\n");

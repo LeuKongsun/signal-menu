@@ -15,6 +15,7 @@ import {
   PENDING_STATUS_LINE,
   staffOrderText,
 } from "@/lib/orderMessages";
+import { renderReceiptImage } from "@/lib/receiptImage";
 
 interface OrderItemInput {
   nameKh: string;
@@ -183,14 +184,29 @@ export async function POST(req: NextRequest) {
     }
 
     if (telegramUser) {
-      const receipt = await sendTelegramText(
-        botToken,
-        telegramUser.id,
-        customerReceiptText(record),
-        customerReceiptKeyboard(record, req.nextUrl.origin)
-      );
+      const keyboard = customerReceiptKeyboard(record, req.nextUrl.origin);
+      let receiptImage: Uint8Array | null = null;
+      try {
+        receiptImage = await renderReceiptImage(record);
+      } catch (err) {
+        console.error(`Could not render receipt image for ${orderNumber}:`, err);
+      }
+
+      const receipt = receiptImage
+        ? await sendOrderMessage({
+            botToken,
+            chatId: String(telegramUser.id),
+            text: customerReceiptText(record, { withItems: false }),
+            replyMarkup: keyboard,
+            photo: { bytes: receiptImage, name: `${orderNumber}.png`, type: "image/png" },
+          })
+        : await sendTelegramText(botToken, telegramUser.id, customerReceiptText(record), keyboard);
+
       if (receipt.ok && receipt.result) {
-        record.customerReceiptMessageId = receipt.result.message_id;
+        record.customerReceipt = {
+          messageId: receipt.result.message_id,
+          isPhoto: Boolean(receiptImage),
+        };
         await saveOrder(record);
       } else {
         console.warn(`Could not message customer ${telegramUser.id}:`, receipt.description);

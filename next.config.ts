@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  outputFileTracingIncludes: {
+    "/api/order": ["./assets/fonts/**/*"],
+  },
 };
 
 export default nextConfig;

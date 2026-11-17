@@ -174,13 +174,14 @@ export async function POST(req: NextRequest) {
     // 4. Update the customer's receipt and alert them, if they ordered through the Mini App
     if (record?.customerTelegram) {
       const customerChatId = record.customerTelegram.id;
-      const receiptId = record.customerReceiptMessageId;
+      const receipt = record.customerReceipt;
+      const receiptId = receipt?.messageId;
 
-      if (receiptId) {
+      if (receipt) {
         const edited = await editOrderMessage(
           botToken,
-          { chatId: customerChatId, messageId: receiptId, isPhoto: false },
-          customerReceiptText(record),
+          { chatId: customerChatId, messageId: receipt.messageId, isPhoto: receipt.isPhoto },
+          customerReceiptText(record, { withItems: !receipt.isPhoto }),
           customerReceiptKeyboard(record, req.nextUrl.origin)
         );
         if (!edited.ok) {
