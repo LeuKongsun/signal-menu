@@ -24,8 +24,6 @@ export interface OrderRecord {
   customerTelegram?: { id: number; name: string; username?: string };
   /** The receipt message in the customer's chat, kept up to date as the status changes. */
   customerReceipt?: { messageId: number; isPhoto: boolean };
-  /** ABA proof: uploaded at checkout, or sent later in the bot chat. */
-  paymentProof?: "attached" | "awaiting" | "received";
   /** Current status line on the staff message, so later edits can rebuild it. */
   staffStatusLine?: string;
   /** The order message in each admin/seller chat, so every copy can be updated together. */
@@ -54,22 +52,6 @@ export async function saveOrder(record: OrderRecord): Promise<void> {
   await kvSet(orderKey(record.orderNumber), record, {
     ttlSeconds: ORDER_TTL_SECONDS,
   });
-}
-
-const awaitingPaymentKey = (customerId: number) => `awaiting-payment:${customerId}`;
-
-/** Remembers which order a customer's next payment screenshot belongs to. */
-export async function markAwaitingPayment(customerId: number, orderNumber: string) {
-  await kvSet(awaitingPaymentKey(customerId), orderNumber, { ttlSeconds: 60 * 60 * 24 });
-}
-
-/** The customer's latest open ABA order that is waiting for a screenshot sent in chat. */
-export async function getAwaitingPaymentOrder(customerId: number): Promise<OrderRecord | null> {
-  const orderNumber = await kvGet<string>(awaitingPaymentKey(customerId));
-  if (!orderNumber) return null;
-  const record = await getOrder(orderNumber);
-  if (!record || record.status === "ready" || record.status === "cancelled") return null;
-  return record;
 }
 
 export async function updateOrderStatus(

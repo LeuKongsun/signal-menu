@@ -1,7 +1,5 @@
 import type { OrderRecord, OrderStatus } from "@/lib/orderStore";
 import { escapeHtml, type InlineKeyboard } from "@/lib/telegram";
-import { ABA_PAY_LINK } from "@/lib/aba";
-
 export const PENDING_STATUS_LINE = `🔴 <b>Status: PENDING REVIEW</b>`;
 
 /** Barista buttons for an order in the given status. */
@@ -45,11 +43,7 @@ export function staffOrderText(order: OrderRecord, statusLine: string) {
   const paymentLabel =
     order.paymentMethod === "cash"
       ? "💵 <b>Cash on Pickup</b>"
-      : order.paymentProof === "awaiting"
-        ? "⏳ <b>ABA KHQR (waiting for the customer's screenshot)</b>"
-        : order.paymentProof === "received"
-          ? "✅ <b>ABA KHQR (screenshot sent in reply)</b>"
-          : "✅ <b>ABA KHQR (Receipt Attached)</b>";
+      : "🏦 <b>ABA KHQR</b> (check the ABA app before confirming)";
 
   const tg = order.customerTelegram;
   const telegramLine = tg
@@ -112,21 +106,7 @@ function progressLine(status: OrderStatus) {
 /** Receipt text; leave out the item list when it's the caption of the receipt image. */
 export function customerReceiptText(order: OrderRecord, { withItems = true } = {}) {
   const [headline, headlineKh] = RECEIPT_HEADLINES[order.status];
-  const isOpen = order.status !== "ready" && order.status !== "cancelled";
-  const screenshotLines =
-    order.paymentProof === "awaiting" && isOpen
-      ? [
-          `📸 <b>Pay with ABA, then send your payment screenshot in this chat.</b>`,
-          `សូមបង់ប្រាក់តាម ABA រួចផ្ញើរូបថតបង្កាន់ដៃនៅទីនេះ`,
-          ``,
-        ]
-      : [];
-  const paymentText =
-    order.paymentMethod === "cash"
-      ? "Cash at pickup"
-      : order.paymentProof === "awaiting"
-        ? "ABA KHQR (waiting for your screenshot)"
-        : "ABA KHQR (screenshot received ✅)";
+  const paymentText = order.paymentMethod === "cash" ? "Cash at pickup" : "ABA KHQR";
 
   return [
     `🧾 <b>SIGNAL Cafe · Order #${order.orderNumber}</b>`,
@@ -135,7 +115,6 @@ export function customerReceiptText(order: OrderRecord, { withItems = true } = {
     headlineKh,
     progressLine(order.status),
     ``,
-    ...screenshotLines,
     ...(withItems ? [itemLines(order), ``] : []),
     `<b>Total: ${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
     `Payment: ${paymentText}`,
@@ -156,11 +135,7 @@ export function customerReceiptKeyboard(
         text: "📍 Track order",
         web_app: { url: `${origin}/order/${order.orderNumber}` },
       };
-  const payButton =
-    order.paymentProof === "awaiting" && !isClosed
-      ? [[{ text: "💳 Pay with ABA", url: ABA_PAY_LINK }]]
-      : [];
-  return { inline_keyboard: [...payButton, [button]] };
+  return { inline_keyboard: [[button]] };
 }
 
 const STATUS_ALERTS: Partial<Record<OrderStatus, (n: string) => string>> = {

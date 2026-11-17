@@ -5,11 +5,9 @@ import {
   escapeHtml,
   mergeCopies,
   sendOrderMessage,
-  sendTelegramFileById,
   sendTelegramText,
 } from "@/lib/telegram";
 import {
-  getAwaitingPaymentOrder,
   getOrder,
   saveOrder,
   type OrderStatus,
@@ -18,7 +16,6 @@ import {
   customerReceiptKeyboard,
   customerReceiptText,
   customerStatusText,
-  PENDING_STATUS_LINE,
   staffKeyboard,
   staffOrderText,
 } from "@/lib/orderMessages";
@@ -29,104 +26,6 @@ const ACTION_STATUS: Record<string, OrderStatus> = {
   pickup: "ready",
   cancel: "cancelled",
 };
-
-type IncomingMessage = {
-  message_id: number;
-  chat: { id: number; type: string };
-  from?: { id: number };
-  text?: string;
-  photo?: { file_id: string }[];
-  document?: { file_id: string; mime_type?: string };
-};
-
-type IncomingImage = { kind: "photo" | "document"; fileId: string };
-
-function incomingImage(message: IncomingMessage): IncomingImage | null {
-  if (message.photo?.length) {
-    return { kind: "photo", fileId: message.photo[message.photo.length - 1].file_id };
-  }
-  if (message.document?.mime_type?.startsWith("image/")) {
-    return { kind: "document", fileId: message.document.file_id };
-  }
-  return null;
-}
-
-/** Forwards a customer's ABA screenshot to staff and marks their order as having proof. */
-async function handlePaymentScreenshot(
-  botToken: string,
-  message: IncomingMessage,
-  image: IncomingImage,
-  origin: string,
-  appUrl: string
-) {
-  const customerId = message.from?.id ?? message.chat.id;
-  const order = await getAwaitingPaymentOrder(customerId);
-
-  if (!order) {
-    await sendTelegramText(
-      botToken,
-      message.chat.id,
-      [
-        `I couldn't find an open ABA order waiting for a payment screenshot.`,
-        `រកមិនឃើញការកម្ម៉ង់ដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ`,
-      ].join("\n"),
-      { inline_keyboard: [[{ text: "☕ Order drinks", web_app: { url: appUrl } }]] },
-      message.message_id
-    );
-    return;
-  }
-
-  const { orderNumber } = order;
-  const copies = order.staffCopies ?? [];
-  const caption = `📸 <b>Payment screenshot for #${orderNumber}</b>\nFrom ${escapeHtml(order.customerName)} · ${order.totalRiel.toLocaleString("en-US")}៛`;
-
-  const forwarded = await Promise.all(
-    copies.map((copy) =>
-      sendTelegramFileById(botToken, copy.chatId, image.kind, image.fileId, caption, copy.messageId)
-    )
-  );
-  if (!forwarded.some((r) => r.ok)) {
-    console.error(`Could not forward screenshot for ${orderNumber}:`, forwarded[0]?.description);
-    await sendTelegramText(
-      botToken,
-      message.chat.id,
-      `Sorry, we couldn't pass your screenshot to the barista. Please show it at the counter.`,
-      undefined,
-      message.message_id
-    );
-    return;
-  }
-
-  if (order.paymentProof === "awaiting") {
-    order.paymentProof = "received";
-    order.updatedAt = new Date().toISOString();
-    await saveOrder(order);
-
-    const staffText = staffOrderText(order, order.staffStatusLine ?? PENDING_STATUS_LINE);
-    const staffButtons = staffKeyboard(orderNumber, order.status);
-    await Promise.all(copies.map((copy) => editOrderMessage(botToken, copy, staffText, staffButtons)));
-
-    if (order.customerReceipt) {
-      await editOrderMessage(
-        botToken,
-        { chatId: message.chat.id, messageId: order.customerReceipt.messageId, isPhoto: order.customerReceipt.isPhoto },
-        customerReceiptText(order, { withItems: !order.customerReceipt.isPhoto }),
-        customerReceiptKeyboard(order, origin)
-      );
-    }
-  }
-
-  await sendTelegramText(
-    botToken,
-    message.chat.id,
-    [
-      `✅ <b>Got it!</b> Your payment screenshot was sent to the barista for order #${orderNumber}.`,
-      `បានទទួលរូបថតបង្កាន់ដៃហើយ សូមអរគុណ`,
-    ].join("\n"),
-    undefined,
-    message.message_id
-  );
-}
 
 export async function GET() {
   return NextResponse.json({
@@ -152,14 +51,11 @@ export async function POST(req: NextRequest) {
 
     const update = await req.json();
 
-    // Private chat: /start welcome, or an ABA payment screenshot for an open order
+    // Private chat: /start welcome
     const incoming = update.message;
     if (incoming?.chat?.type === "private") {
       const appUrl = process.env.TELEGRAM_MINI_APP_URL || `${req.nextUrl.origin}/`;
-      const image = incomingImage(incoming);
-      if (image) {
-        await handlePaymentScreenshot(botToken, incoming, image, req.nextUrl.origin, appUrl);
-      } else if (typeof incoming.text === "string" && incoming.text.startsWith("/start")) {
+      if (typeof incoming.text === "string" && incoming.text.startsWith("/start")) {
         await sendTelegramText(
           botToken,
           incoming.chat.id,

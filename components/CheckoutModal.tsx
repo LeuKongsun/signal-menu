@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   X,
   QrCode,
   Banknote,
-  Upload,
   CheckCircle2,
   Copy,
   Check,
@@ -21,31 +20,6 @@ import {
   ABA_PAY_LINK,
   ABA_PAYMENT_ENABLED,
 } from "@/lib/aba";
-
-/**
- * Shrinks a photo to a JPEG no larger than `maxSide` pixels, keeping uploads well
- * under Vercel's 4.5 MB request limit. Returns the original file if it can't be decoded.
- */
-async function shrinkImage(file: File, maxSide = 2000, quality = 0.82): Promise<File> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", quality)
-    );
-    if (!blob || blob.size >= file.size) return file;
-    const name = file.name.replace(/\.[^.]+$/, "") || "receipt";
-    return new File([blob], `${name}.jpg`, { type: "image/jpeg" });
-  } catch {
-    return file;
-  }
-}
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -71,10 +45,6 @@ export function CheckoutModal({
   const [paymentMethod, setPaymentMethod] = useState<"aba" | "cash">(
     ABA_PAYMENT_ENABLED ? "aba" : "cash"
   );
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
-  const [isPreparingReceipt, setIsPreparingReceipt] = useState(false);
-  const receiptInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [completedOrder, setCompletedOrder] = useState<{
@@ -82,44 +52,18 @@ export function CheckoutModal({
     isMock?: boolean;
     message?: string;
     viaTelegram?: boolean;
-    awaitingScreenshot?: boolean;
   } | null>(null);
   const [copiedAcc, setCopiedAcc] = useState(false);
 
   const abaAccName = ABA_ACCOUNT_NAME;
   const abaAccNumber = ABA_ACCOUNT_NUMBER;
   const abaPayLink = ABA_PAY_LINK;
-  // Inside Telegram the customer can send the screenshot in the bot chat after ordering
-  const screenshotInChat = Boolean(telegram);
 
   const totalCount = tray.reduce((sum, i) => sum + i.quantity, 0);
   const totalUsd = tray.reduce((sum, i) => sum + i.price.usd * i.quantity, 0);
   const totalRiel = tray.reduce((sum, i) => sum + i.price.riel * i.quantity, 0);
 
   if (!isOpen) return null;
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const file = input.files?.[0];
-    // Cleared so picking the same photo again still fires onChange
-    input.value = "";
-    if (!file) return;
-
-    setIsPreparingReceipt(true);
-    const shrunk = await shrinkImage(file);
-    setIsPreparingReceipt(false);
-
-    if (shrunk.size > 4 * 1024 * 1024) {
-      setErrorMsg("រូបភាពធំពេក / This image is too large. Please send a screenshot instead.");
-      return;
-    }
-    if (receiptPreview) URL.revokeObjectURL(receiptPreview);
-    setReceiptFile(shrunk);
-    setReceiptPreview(URL.createObjectURL(shrunk));
-    setErrorMsg(null);
-  };
-
-  const openReceiptPicker = () => receiptInputRef.current?.click();
 
   // Telegram's in-app browser often won't hand ABA links to the ABA app, so open them outside Telegram
   const handleAbaLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -138,13 +82,6 @@ export function CheckoutModal({
     e.preventDefault();
     if (!customerName.trim()) {
       setErrorMsg("សូមបញ្ចូលឈ្មោះរបស់អ្នក / Please enter your name");
-      return;
-    }
-
-    if (paymentMethod === "aba" && !receiptFile && !screenshotInChat) {
-      setErrorMsg(
-        "សូមភ្ជាប់រូបភាពវិក្កយបត្រ ABA / Please attach your ABA payment receipt"
-      );
       return;
     }
 
@@ -175,9 +112,6 @@ export function CheckoutModal({
 
       const formData = new FormData();
       formData.append("orderData", JSON.stringify(orderPayload));
-      if (receiptFile) {
-        formData.append("receipt", receiptFile);
-      }
       if (telegram) {
         formData.append("telegramInitData", telegram.initData);
       }
@@ -197,7 +131,6 @@ export function CheckoutModal({
         isMock: data.isMock,
         message: data.message,
         viaTelegram: data.viaTelegram,
-        awaitingScreenshot: data.awaitingScreenshot,
       });
       if (telegram?.isVersionAtLeast("6.1")) {
         telegram.HapticFeedback.notificationOccurred("success");
@@ -216,8 +149,6 @@ export function CheckoutModal({
 
   const handleResetAndClose = () => {
     setCompletedOrder(null);
-    setReceiptFile(null);
-    setReceiptPreview(null);
     setCustomerName("");
     setCustomerPhone("");
     setCustomerNotes("");
@@ -297,11 +228,7 @@ export function CheckoutModal({
                 <div className="flex justify-between text-stone-600">
                   <span>Payment:</span>
                   <span className="font-semibold">
-                    {paymentMethod === "cash"
-                      ? "Cash on Pickup"
-                      : completedOrder.awaitingScreenshot
-                        ? "ABA KHQR (send screenshot)"
-                        : "ABA KHQR (Paid)"}
+                    {paymentMethod === "cash" ? "Cash on Pickup" : "ABA KHQR"}
                   </span>
                 </div>
               </div>
@@ -312,18 +239,7 @@ export function CheckoutModal({
                 </div>
               )}
 
-              {completedOrder.awaitingScreenshot ? (
-                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-left text-xs text-amber-900">
-                  <p className="font-bold text-sm">📸 One more step</p>
-                  <p className="mt-0.5">
-                    Pay with ABA if you haven&apos;t yet, then go back to the chat and send
-                    your payment screenshot there.
-                  </p>
-                  <p className="font-khmer mt-1 text-amber-800">
-                    សូមបង់ប្រាក់តាម ABA រួចផ្ញើរូបថតបង្កាន់ដៃនៅក្នុងឆាត
-                  </p>
-                </div>
-              ) : completedOrder.viaTelegram ? (
+              {completedOrder.viaTelegram ? (
                 <p className="text-xs text-stone-600">
                   📩 We sent your receipt to the SIGNAL bot chat and will message
                   you there when your drinks are ready.
@@ -553,86 +469,6 @@ export function CheckoutModal({
                     </div>
                   </div>
 
-                  {/* Receipt Upload Box */}
-                  <div className="pt-2">
-                    {screenshotInChat && !receiptFile && (
-                      <div className="mb-3 p-3 rounded-xl bg-white border border-stone-200 text-xs text-stone-700">
-                        <p className="font-bold text-stone-900">📸 Send the screenshot in the chat</p>
-                        <p className="mt-0.5">
-                          After paying, tap <strong>Place Order</strong>, then send your ABA
-                          screenshot to the SIGNAL bot. Uploading here is optional.
-                        </p>
-                        <p className="font-khmer mt-1 text-stone-500">
-                          បន្ទាប់ពីបង់ប្រាក់ សូមផ្ញើរូបថតបង្កាន់ដៃនៅក្នុងឆាត
-                        </p>
-                      </div>
-                    )}
-                    <label className="block text-xs font-bold text-stone-800 mb-1.5 font-khmer">
-                      ភ្ជាប់រូបភាពវិក្កយបត្រ (Upload Payment Receipt){" "}
-                      {screenshotInChat ? (
-                        <span className="font-sans font-semibold text-stone-400">(optional)</span>
-                      ) : (
-                        <span className="text-rose-500">*</span>
-                      )}
-                    </label>
-
-                    {receiptPreview ? (
-                      <div className="relative rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/30 p-2 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 overflow-hidden">
-                          <img
-                            src={receiptPreview}
-                            alt="Receipt Preview"
-                            className="w-12 h-12 object-cover rounded-xl border border-emerald-200"
-                          />
-                          <div className="text-xs truncate">
-                            <span className="font-bold text-emerald-800 block truncate">
-                              {receiptFile?.name}
-                            </span>
-                            <span className="text-[10px] text-emerald-600 font-semibold">
-                              Receipt ready to send
-                            </span>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={openReceiptPicker}
-                          className="px-2.5 py-1.5 rounded-lg bg-white text-stone-700 text-xs font-bold border border-stone-200 hover:bg-stone-50 transition-colors shrink-0"
-                        >
-                          Change
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={openReceiptPicker}
-                        disabled={isPreparingReceipt}
-                        className="w-full flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-stone-300 hover:border-[#8E583C] bg-white transition-colors group disabled:opacity-60"
-                      >
-                        {isPreparingReceipt ? (
-                          <Loader2 className="w-6 h-6 text-[#8E583C] mb-1 animate-spin" />
-                        ) : (
-                          <Upload className="w-6 h-6 text-stone-400 group-hover:text-[#8E583C] mb-1 transition-colors" />
-                        )}
-                        <span className="text-xs font-bold text-stone-700 group-hover:text-[#8E583C]">
-                          {isPreparingReceipt ? "Preparing photo…" : "Tap to Upload Payment Screenshot"}
-                        </span>
-                        <span className="text-[10px] text-stone-400">
-                          Takes 2 seconds from your photo gallery
-                        </span>
-                      </button>
-                    )}
-                    {/* Visually hidden rather than display:none, which some Android WebViews refuse to open */}
-                    <input
-                      ref={receiptInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="sr-only"
-                      tabIndex={-1}
-                      aria-hidden
-                    />
-                  </div>
                 </div>
               ) : (
                 // Cash Note
@@ -662,11 +498,7 @@ export function CheckoutModal({
                       <span>Sending Order to Telegram...</span>
                     </>
                   ) : (
-                    <span>
-                      {paymentMethod === "aba"
-                        ? `Confirm & Send Receipt • ${totalRiel.toLocaleString()}៛`
-                        : `Place Order • ${totalRiel.toLocaleString()}៛`}
-                    </span>
+                    <span>{`Place Order • ${totalRiel.toLocaleString()}៛`}</span>
                   )}
                 </button>
               </div>

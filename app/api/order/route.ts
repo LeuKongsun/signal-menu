@@ -9,7 +9,6 @@ import {
 } from "@/lib/telegram";
 import {
   createOrder,
-  markAwaitingPayment,
   saveOrder,
   type OrderRecord,
 } from "@/lib/orderStore";
@@ -59,7 +58,6 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const rawOrderData = formData.get("orderData") as string | null;
-    const receiptFile = formData.get("receipt") as File | null;
     const telegramInitData = formData.get("telegramInitData") as string | null;
 
     if (!rawOrderData) {
@@ -87,18 +85,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    const hasReceipt = Boolean(receiptFile && receiptFile.size > 0);
-    if (order.paymentMethod === "aba" && !hasReceipt && !telegramUser) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "សូមភ្ជាប់រូបភាពវិក្កយបត្រ ABA / Please attach your ABA payment receipt",
-        },
-        { status: 400 }
-      );
-    }
-
     const now = new Date().toISOString();
     const record = await storeWithUniqueNumber({
       customerName: order.customerName,
@@ -109,8 +95,6 @@ export async function POST(req: NextRequest) {
       totalRiel: order.totalRiel,
       totalUsd: order.totalUsd,
       paymentMethod: order.paymentMethod,
-      paymentProof:
-        order.paymentMethod === "aba" ? (hasReceipt ? "attached" : "awaiting") : undefined,
       staffStatusLine: PENDING_STATUS_LINE,
       customerTelegram: telegramUser
         ? {
@@ -131,7 +115,6 @@ export async function POST(req: NextRequest) {
     if (!botToken || chatIds.length === 0) {
       console.log("\n================ [SIGNAL ORDER RECEIVED (TEST MODE)] ================");
       console.log(caption.replace(/<[^>]+>/g, ""));
-      console.log(`Receipt attached: ${hasReceipt ? receiptFile!.name : "None"}`);
       console.log("Buttons attached: [✅ Confirm Order] [❌ Cancel]");
       console.log("=======================================================================\n");
 
@@ -143,15 +126,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const photo =
-      receiptFile && receiptFile.size > 0
-        ? {
-            bytes: new Uint8Array(await receiptFile.arrayBuffer()),
-            name: receiptFile.name || "receipt.jpg",
-            type: receiptFile.type || "image/jpeg",
-          }
-        : null;
-
     const sentCopies: OrderCopy[] = [];
     const failures: string[] = [];
 
@@ -161,7 +135,6 @@ export async function POST(req: NextRequest) {
         chatId,
         text: caption,
         replyMarkup: inlineKeyboard,
-        photo,
       });
 
       if (!data.ok || !data.result) {
@@ -173,7 +146,7 @@ export async function POST(req: NextRequest) {
       sentCopies.push({
         chatId,
         messageId: data.result.message_id,
-        isPhoto: Boolean(photo),
+        isPhoto: false,
       });
     }
 
@@ -224,17 +197,12 @@ export async function POST(req: NextRequest) {
       } else {
         console.warn(`Could not message customer ${telegramUser.id}:`, receipt.description);
       }
-
-      if (record.paymentProof === "awaiting") {
-        await markAwaitingPayment(telegramUser.id, orderNumber);
-      }
     }
 
     return NextResponse.json({
       success: true,
       orderNumber,
       viaTelegram: Boolean(telegramUser),
-      awaitingScreenshot: record.paymentProof === "awaiting",
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Internal server error";
