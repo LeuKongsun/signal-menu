@@ -1,18 +1,13 @@
-/**
- * In-memory order store shared across all API routes (server-side only).
- *
- * Uses globalThis to survive Next.js hot-reloads in development while keeping
- * a single map instance per Node.js process in production.
- *
- * ⚠️  Resets on every Vercel cold-start / redeploy — that is intentional and
- *    acceptable for a physical cafe kiosk where orders are fulfilled in minutes.
- */
+import { kvGet, kvSet } from "@/lib/kv";
+import type { OrderCopy } from "@/lib/telegram";
 
 export type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "cancelled";
 
 export interface OrderRecord {
   orderNumber: string;
   customerName: string;
+  customerPhone?: string;
+  customerNotes?: string;
   status: OrderStatus;
   items: Array<{
     nameKh: string;
@@ -25,35 +20,44 @@ export interface OrderRecord {
   totalRiel: number;
   totalUsd: number;
   paymentMethod: "aba" | "cash";
+  /** Telegram user who ordered through the Mini App; the bot messages them on status changes. */
+  customerTelegram?: { id: number; name: string; username?: string };
+  /** The order message in each admin/seller chat, so every copy can be updated together. */
+  staffCopies?: OrderCopy[];
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 }
 
-type OrderStore = Map<string, OrderRecord>;
+const ORDER_TTL_SECONDS = 60 * 60 * 24 * 14;
 
-const globalForOrders = globalThis as typeof globalThis & {
-  __signalOrderStore?: OrderStore;
-};
+const orderKey = (orderNumber: string) => `order:${orderNumber.toUpperCase()}`;
 
-function orderStore(): OrderStore {
-  if (!globalForOrders.__signalOrderStore) {
-    globalForOrders.__signalOrderStore = new Map();
-  }
-  return globalForOrders.__signalOrderStore;
+/** Returns false if an order with this number already exists. */
+export async function createOrder(record: OrderRecord): Promise<boolean> {
+  return kvSet(orderKey(record.orderNumber), record, {
+    ttlSeconds: ORDER_TTL_SECONDS,
+    onlyIfNew: true,
+  });
 }
 
-export function createOrder(record: OrderRecord): void {
-  orderStore().set(record.orderNumber, record);
+export async function getOrder(orderNumber: string): Promise<OrderRecord | null> {
+  return kvGet<OrderRecord>(orderKey(orderNumber));
 }
 
-export function getOrder(orderNumber: string): OrderRecord | undefined {
-  return orderStore().get(orderNumber);
+export async function saveOrder(record: OrderRecord): Promise<void> {
+  await kvSet(orderKey(record.orderNumber), record, {
+    ttlSeconds: ORDER_TTL_SECONDS,
+  });
 }
 
-export function updateOrderStatus(orderNumber: string, status: OrderStatus): boolean {
-  const record = orderStore().get(orderNumber);
-  if (!record) return false;
+export async function updateOrderStatus(
+  orderNumber: string,
+  status: OrderStatus
+): Promise<OrderRecord | null> {
+  const record = await getOrder(orderNumber);
+  if (!record) return null;
   record.status = status;
   record.updatedAt = new Date().toISOString();
-  return true;
+  await saveOrder(record);
+  return record;
 }

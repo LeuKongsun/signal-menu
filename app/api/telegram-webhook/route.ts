@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { copiesForUpdate, editOrderMessage } from "@/lib/telegram";
-import { updateOrderStatus } from "@/lib/orderStore";
+import {
+  answerCallbackQuery,
+  editOrderMessage,
+  escapeHtml,
+  mergeCopies,
+  sendTelegramText,
+  type InlineKeyboard,
+} from "@/lib/telegram";
+import { getOrder, saveOrder, type OrderStatus } from "@/lib/orderStore";
+import { customerStatusText, staffOrderText } from "@/lib/orderMessages";
 
-interface InlineButton {
-  text: string;
-  callback_data: string;
-}
-
-interface InlineKeyboardMarkup {
-  inline_keyboard: InlineButton[][];
-}
+const ACTION_STATUS: Record<string, OrderStatus> = {
+  confirm: "preparing",
+  pickup: "ready",
+  cancel: "cancelled",
+};
 
 export async function GET() {
   return NextResponse.json({
@@ -25,15 +30,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN not configured" }, { status: 500 });
     }
 
-    const update = await req.json();
-
-    // Check if this is a button click (callback_query)
-    const callbackQuery = update.callback_query;
-    if (!callbackQuery) {
-      return NextResponse.json({ ok: true, ignored: "Not a callback query" });
+    const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (
+      webhookSecret &&
+      req.headers.get("x-telegram-bot-api-secret-token") !== webhookSecret
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const callbackId = callbackQuery.id;
+    const update = await req.json();
+
+    // /start in a private chat → welcome message with a button that opens the Mini App
+    const incoming = update.message;
+    if (incoming?.chat?.type === "private" && typeof incoming.text === "string") {
+      if (incoming.text.startsWith("/start")) {
+        const appUrl = process.env.TELEGRAM_MINI_APP_URL || `${req.nextUrl.origin}/`;
+        await sendTelegramText(
+          botToken,
+          incoming.chat.id,
+          [
+            `☕ <b>Welcome to SIGNAL Cafe!</b>`,
+            `សូមស្វាគមន៍មកកាន់ SIGNAL Cafe`,
+            ``,
+            `Tap the button below to browse the menu and order. We'll message you here when your drinks are ready.`,
+          ].join("\n"),
+          { inline_keyboard: [[{ text: "☕ Order drinks", web_app: { url: appUrl } }]] }
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    const callbackQuery = update.callback_query;
+    if (!callbackQuery) {
+      return NextResponse.json({ ok: true, ignored: "Unsupported update" });
+    }
+
+    const callbackId = callbackQuery.id as string;
     const data = callbackQuery.data as string; // e.g. "confirm:SIG-1048"
     const staffName =
       callbackQuery.from.first_name ||
@@ -45,21 +77,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const chatId = message.chat.id;
-    const messageId = message.message_id;
-    const isPhoto = Boolean(message.photo && message.photo.length > 0);
-    const originalText = isPhoto ? (message.caption || "") : (message.text || "");
-
     const [action, orderNumber] = data.split(":");
+    const nextStatus = ACTION_STATUS[action];
+    if (!nextStatus || !orderNumber) {
+      await answerCallbackQuery(botToken, callbackId, "Unknown action");
+      return NextResponse.json({ ok: true });
+    }
+
+    const record = await getOrder(orderNumber);
+    if (record && (record.status === "ready" || record.status === "cancelled")) {
+      await answerCallbackQuery(
+        botToken,
+        callbackId,
+        `Order #${orderNumber} is already ${record.status === "ready" ? "completed" : "cancelled"}.`
+      );
+      return NextResponse.json({ ok: true, ignored: "Order already closed" });
+    }
 
     let newStatusText = "";
     let alertPopup = "";
-    let newKeyboard: InlineKeyboardMarkup = { inline_keyboard: [] };
+    let newKeyboard: InlineKeyboard = { inline_keyboard: [] };
 
     if (action === "confirm") {
-      newStatusText = `🟡 <b>Status: PREPARING DRINKS (Confirmed by ${staffName})</b>`;
+      newStatusText = `🟡 <b>Status: PREPARING DRINKS (Confirmed by ${escapeHtml(staffName)})</b>`;
       alertPopup = `Order #${orderNumber} confirmed by ${staffName}! Preparing drinks...`;
-      updateOrderStatus(orderNumber, "preparing");
       newKeyboard = {
         inline_keyboard: [
           [
@@ -77,45 +118,41 @@ export async function POST(req: NextRequest) {
         ],
       };
     } else if (action === "pickup") {
-      newStatusText = `🟢 <b>Status: COMPLETED / PICKED UP (by ${staffName})</b>`;
+      newStatusText = `🟢 <b>Status: COMPLETED / PICKED UP (by ${escapeHtml(staffName)})</b>`;
       alertPopup = `Order #${orderNumber} marked as Ready & Picked Up! 🎉`;
-      updateOrderStatus(orderNumber, "ready");
-      newKeyboard = { inline_keyboard: [] }; // Remove buttons once picked up
-    } else if (action === "cancel") {
-      newStatusText = `❌ <b>Status: CANCELLED (by ${staffName})</b>`;
+    } else {
+      newStatusText = `❌ <b>Status: CANCELLED (by ${escapeHtml(staffName)})</b>`;
       alertPopup = `Order #${orderNumber} was cancelled.`;
-      updateOrderStatus(orderNumber, "cancelled");
-      newKeyboard = { inline_keyboard: [] }; // Remove buttons once cancelled
+    }
+
+    if (record) {
+      record.status = nextStatus;
+      record.updatedAt = new Date().toISOString();
+      await saveOrder(record);
     }
 
     // 1. Answer Telegram's callback query (shows notification banner/alert to staff)
-    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        callback_query_id: callbackId,
-        text: alertPopup,
-        show_alert: false,
-      }),
-    });
+    await answerCallbackQuery(botToken, callbackId, alertPopup);
 
-    // 2. Update the status in the original caption / text
-    let updatedText = originalText;
-    const statusRegex = /(🔴|🟡|🟢|❌) <b>Status:.*?<\/b>/i;
-
-    if (statusRegex.test(updatedText)) {
-      updatedText = updatedText.replace(statusRegex, newStatusText);
+    // 2. Rebuild the order message with the new status. Telegram hands back the
+    //    original as plain text, so the saved order is the source of formatting.
+    const isPhoto = Boolean(message.photo && message.photo.length > 0);
+    let updatedText: string;
+    if (record) {
+      updatedText = staffOrderText(record, newStatusText);
     } else {
-      // If no status line found, prepend it
-      updatedText = `${newStatusText}\n\n${updatedText}`;
+      const originalText = escapeHtml(isPhoto ? message.caption || "" : message.text || "");
+      const statusLine = /^.*Status:.*$/m;
+      updatedText = statusLine.test(originalText)
+        ? originalText.replace(statusLine, newStatusText)
+        : `${newStatusText}\n\n${originalText}`;
     }
 
     // 3. Edit every copy of this order (one message per admin or seller chat)
-    const targets = copiesForUpdate(orderNumber, {
-      chatId,
-      messageId,
-      isPhoto,
-    });
+    const targets = mergeCopies(
+      { chatId: message.chat.id, messageId: message.message_id, isPhoto },
+      record?.staffCopies
+    );
 
     await Promise.all(
       targets.map(async (copy) => {
@@ -128,6 +165,17 @@ export async function POST(req: NextRequest) {
         }
       })
     );
+
+    // 4. Tell the customer, if they ordered through the Telegram Mini App
+    if (record?.customerTelegram) {
+      const text = customerStatusText(record);
+      if (text) {
+        const sent = await sendTelegramText(botToken, record.customerTelegram.id, text);
+        if (!sent.ok) {
+          console.warn(`Could not notify customer for ${orderNumber}:`, sent.description);
+        }
+      }
+    }
 
     return NextResponse.json({ ok: true, status: action, orderNumber });
   } catch (err: unknown) {

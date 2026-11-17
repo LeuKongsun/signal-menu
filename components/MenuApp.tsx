@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   MENU_CATEGORIES,
   MENU_ITEMS,
@@ -15,6 +15,7 @@ import { OrderTray, TrayItem } from "./OrderTray";
 import { PdfModal } from "./PdfModal";
 import { CheckoutModal } from "./CheckoutModal";
 import { Coffee, SearchX } from "lucide-react";
+import { useTelegramWebApp } from "@/lib/useTelegramWebApp";
 
 export function MenuApp() {
   const [selectedCategory, setSelectedCategory] = useState<
@@ -27,6 +28,65 @@ export function MenuApp() {
   const [tray, setTray] = useState<TrayItem[]>([]);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [isTrayOpen, setIsTrayOpen] = useState(false);
+  const tg = useTelegramWebApp();
+
+  const trayCount = tray.reduce((sum, i) => sum + i.quantity, 0);
+  const trayRiel = tray.reduce((sum, i) => sum + i.price.riel * i.quantity, 0);
+
+  // Inside Telegram, Telegram's own bottom button drives the order flow
+  useEffect(() => {
+    if (!tg) return;
+    const button = tg.MainButton;
+
+    let text: string | null = null;
+    let action: (() => void) | null = null;
+    if (!isCheckoutModalOpen && trayCount > 0) {
+      const total = `${trayRiel.toLocaleString("en-US")}៛`;
+      if (isTrayOpen) {
+        text = `PLACE ORDER · ${total}`;
+        action = () => {
+          setIsTrayOpen(false);
+          setIsCheckoutModalOpen(true);
+        };
+      } else {
+        text = `VIEW ORDER · ${trayCount} · ${total}`;
+        action = () => setIsTrayOpen(true);
+      }
+    }
+
+    if (!text || !action) {
+      button.hide();
+      return;
+    }
+    button.setParams({
+      text,
+      color: "#8E583C",
+      text_color: "#FFFFFF",
+      is_active: true,
+      is_visible: true,
+    });
+    button.onClick(action);
+    return () => button.offClick(action);
+  }, [tg, isTrayOpen, isCheckoutModalOpen, trayCount, trayRiel]);
+
+  useEffect(() => {
+    if (!tg || !tg.isVersionAtLeast("6.1")) return;
+    const back = tg.BackButton;
+    const action = isCheckoutModalOpen
+      ? () => setIsCheckoutModalOpen(false)
+      : isTrayOpen
+        ? () => setIsTrayOpen(false)
+        : null;
+
+    if (!action) {
+      back.hide();
+      return;
+    }
+    back.show();
+    back.onClick(action);
+    return () => back.offClick(action);
+  }, [tg, isTrayOpen, isCheckoutModalOpen]);
 
   // Cart / Tray handlers
   const handleAddToCart = (
@@ -34,6 +94,8 @@ export function MenuApp() {
     size: "regular" | "large",
     price: PriceOption
   ) => {
+    if (tg?.isVersionAtLeast("6.1")) tg.HapticFeedback.impactOccurred("light");
+    if (trayCount === 0) setIsTrayOpen(false);
     const cartId = `${item.id}-${size}`;
     setTray((prev) => {
       const existing = prev.find((entry) => entry.cartId === cartId);
@@ -229,15 +291,21 @@ export function MenuApp() {
         onClearTray={handleClearTray}
         onProceedToCheckout={() => setIsCheckoutModalOpen(true)}
         currencyMode={currencyMode}
+        isOpen={isTrayOpen && trayCount > 0}
+        onOpenChange={setIsTrayOpen}
+        nativeButtons={Boolean(tg)}
       />
 
       {/* Checkout & Telegram Payment Modal */}
-      <CheckoutModal
-        isOpen={isCheckoutModalOpen}
-        onClose={() => setIsCheckoutModalOpen(false)}
-        tray={tray}
-        onOrderSuccess={() => setTray([])}
-      />
+      {isCheckoutModalOpen && (
+        <CheckoutModal
+          isOpen
+          onClose={() => setIsCheckoutModalOpen(false)}
+          tray={tray}
+          onOrderSuccess={() => setTray([])}
+          telegram={tg}
+        />
+      )}
 
       {/* PDF Modal */}
       <PdfModal

@@ -1,7 +1,12 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 const TELEGRAM_API = "https://api.telegram.org";
 
 export type InlineKeyboard = {
-  inline_keyboard: { text: string; callback_data: string }[][];
+  inline_keyboard: (
+    | { text: string; callback_data: string }
+    | { text: string; web_app: { url: string } }
+  )[][];
 };
 
 export type OrderCopy = {
@@ -16,18 +21,13 @@ type TelegramResult = {
   result?: { message_id: number };
 };
 
-type CopyStore = Map<string, OrderCopy[]>;
-
-const globalForCopies = globalThis as typeof globalThis & {
-  __signalTelegramCopies?: CopyStore;
+export type TelegramUser = {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  language_code?: string;
 };
-
-function copyStore(): CopyStore {
-  if (!globalForCopies.__signalTelegramCopies) {
-    globalForCopies.__signalTelegramCopies = new Map();
-  }
-  return globalForCopies.__signalTelegramCopies;
-}
 
 /** Accepts one id or several, separated by commas, semicolons, or spaces. */
 export function parseTelegramChatIds(raw: string | undefined): string[] {
@@ -40,19 +40,84 @@ export function parseTelegramChatIds(raw: string | undefined): string[] {
   return [...seen];
 }
 
-export function rememberOrderCopies(orderNumber: string, sent: OrderCopy[]) {
-  if (!orderNumber || sent.length === 0) return;
-  copyStore().set(orderNumber, sent);
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
-export function copiesForUpdate(orderNumber: string, current: OrderCopy): OrderCopy[] {
-  const merged = new Map<string, OrderCopy>();
-  const add = (copy: OrderCopy) => {
-    merged.set(`${copy.chatId}:${copy.messageId}`, copy);
-  };
-  add(current);
-  for (const copy of copyStore().get(orderNumber) ?? []) add(copy);
-  return [...merged.values()];
+/**
+ * Checks the `initData` string a Mini App receives from Telegram and returns the
+ * user if the signature is valid and not older than `maxAgeSeconds`.
+ * https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+ */
+export function verifyTelegramInitData(
+  initData: string,
+  botToken: string,
+  maxAgeSeconds = 60 * 60 * 24
+): TelegramUser | null {
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return null;
+  params.delete("hash");
+
+  const dataCheckString = [...params.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+
+  const secretKey = createHmac("sha256", "WebAppData").update(botToken).digest();
+  const expected = createHmac("sha256", secretKey).update(dataCheckString).digest();
+  const received = Buffer.from(hash, "hex");
+  if (received.length !== expected.length || !timingSafeEqual(received, expected)) {
+    return null;
+  }
+
+  const authDate = Number(params.get("auth_date"));
+  if (!authDate || Date.now() / 1000 - authDate > maxAgeSeconds) return null;
+
+  try {
+    const user = JSON.parse(params.get("user") || "null") as TelegramUser | null;
+    return user && typeof user.id === "number" ? user : null;
+  } catch {
+    return null;
+  }
+}
+
+async function callTelegram(
+  botToken: string,
+  method: string,
+  body: Record<string, unknown>
+): Promise<TelegramResult> {
+  const res = await fetch(`${TELEGRAM_API}/bot${botToken}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+export function sendTelegramText(
+  botToken: string,
+  chatId: string | number,
+  text: string,
+  replyMarkup?: InlineKeyboard
+): Promise<TelegramResult> {
+  return callTelegram(botToken, "sendMessage", {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+  });
+}
+
+export function answerCallbackQuery(botToken: string, callbackQueryId: string, text: string) {
+  return callTelegram(botToken, "answerCallbackQuery", {
+    callback_query_id: callbackQueryId,
+    text,
+    show_alert: false,
+  });
 }
 
 export async function sendOrderMessage(options: {
@@ -83,46 +148,37 @@ export async function sendOrderMessage(options: {
     return res.json();
   }
 
-  const res = await fetch(`${TELEGRAM_API}/bot${botToken}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-      reply_markup: replyMarkup,
-    }),
-  });
-  return res.json();
+  return sendTelegramText(botToken, chatId, text, replyMarkup);
 }
 
-export async function editOrderMessage(
+export function editOrderMessage(
   botToken: string,
   copy: OrderCopy,
   text: string,
   replyMarkup: InlineKeyboard
 ): Promise<TelegramResult> {
-  const method = copy.isPhoto ? "editMessageCaption" : "editMessageText";
-  const body = copy.isPhoto
-    ? {
+  return copy.isPhoto
+    ? callTelegram(botToken, "editMessageCaption", {
         chat_id: copy.chatId,
         message_id: copy.messageId,
         caption: text,
         parse_mode: "HTML",
         reply_markup: replyMarkup,
-      }
-    : {
+      })
+    : callTelegram(botToken, "editMessageText", {
         chat_id: copy.chatId,
         message_id: copy.messageId,
         text,
         parse_mode: "HTML",
         reply_markup: replyMarkup,
-      };
+      });
+}
 
-  const res = await fetch(`${TELEGRAM_API}/bot${botToken}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return res.json();
+/** The message the current one belongs to, plus every other stored copy, without duplicates. */
+export function mergeCopies(current: OrderCopy, stored: OrderCopy[] = []): OrderCopy[] {
+  const merged = new Map<string, OrderCopy>();
+  for (const copy of [current, ...stored]) {
+    merged.set(`${copy.chatId}:${copy.messageId}`, copy);
+  }
+  return [...merged.values()];
 }

@@ -14,12 +14,15 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { TrayItem } from "./OrderTray";
+import type { TelegramWebApp } from "@/lib/useTelegramWebApp";
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   tray: TrayItem[];
   onOrderSuccess: () => void;
+  /** Set when running as a Telegram Mini App. */
+  telegram?: TelegramWebApp | null;
 }
 
 export function CheckoutModal({
@@ -27,8 +30,11 @@ export function CheckoutModal({
   onClose,
   tray,
   onOrderSuccess,
+  telegram = null,
 }: CheckoutModalProps) {
-  const [customerName, setCustomerName] = useState("");
+  const [customerName, setCustomerName] = useState(
+    () => telegram?.initDataUnsafe.user?.first_name ?? ""
+  );
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"aba" | "cash">("aba");
@@ -40,6 +46,7 @@ export function CheckoutModal({
     orderNumber: string;
     isMock?: boolean;
     message?: string;
+    viaTelegram?: boolean;
   } | null>(null);
   const [copiedAcc, setCopiedAcc] = useState(false);
 
@@ -64,6 +71,13 @@ export function CheckoutModal({
       setReceiptPreview(URL.createObjectURL(file));
       setErrorMsg(null);
     }
+  };
+
+  // Telegram's in-app browser often won't hand ABA links to the ABA app, so open them outside Telegram
+  const handleAbaLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!telegram) return;
+    e.preventDefault();
+    telegram.openLink(abaPayLink);
   };
 
   const handleCopyAccount = () => {
@@ -116,6 +130,9 @@ export function CheckoutModal({
       if (receiptFile) {
         formData.append("receipt", receiptFile);
       }
+      if (telegram) {
+        formData.append("telegramInitData", telegram.initData);
+      }
 
       const res = await fetch("/api/order", {
         method: "POST",
@@ -131,11 +148,18 @@ export function CheckoutModal({
         orderNumber: data.orderNumber,
         isMock: data.isMock,
         message: data.message,
+        viaTelegram: data.viaTelegram,
       });
+      if (telegram?.isVersionAtLeast("6.1")) {
+        telegram.HapticFeedback.notificationOccurred("success");
+      }
       onOrderSuccess();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to submit order. Please try again.";
       setErrorMsg(msg);
+      if (telegram?.isVersionAtLeast("6.1")) {
+        telegram.HapticFeedback.notificationOccurred("error");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -231,9 +255,28 @@ export function CheckoutModal({
                 </div>
               )}
 
-              <p className="text-xs text-stone-500 font-khmer">
-                បារីស្តានឹងហៅឈ្មោះរបស់អ្នកនៅពេលភេសជ្ជៈរួចរាល់!
-              </p>
+              {completedOrder.viaTelegram ? (
+                <p className="text-xs text-stone-600">
+                  📩 We sent your receipt to the SIGNAL bot chat and will message
+                  you there when your drinks are ready.
+                  <span className="font-khmer block mt-0.5 text-stone-500">
+                    យើងនឹងផ្ញើសារជូនអ្នកនៅពេលភេសជ្ជៈរួចរាល់
+                  </span>
+                </p>
+              ) : (
+                <p className="text-xs text-stone-500 font-khmer">
+                  បារីស្តានឹងហៅឈ្មោះរបស់អ្នកនៅពេលភេសជ្ជៈរួចរាល់!
+                </p>
+              )}
+
+              {telegram && (
+                <button
+                  onClick={() => telegram.close()}
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#8E583C] text-white font-bold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/20"
+                >
+                  Back to chat
+                </button>
+              )}
 
               {/* Track order button */}
               <a
@@ -395,6 +438,7 @@ export function CheckoutModal({
                       href={abaPayLink}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={handleAbaLinkClick}
                       className="group/qr block relative w-52 sm:w-60 bg-white p-2 rounded-2xl shadow-sm border border-stone-200 hover:border-[#003755] hover:shadow-md transition-all overflow-hidden"
                       title="Tap QR to open in ABA Mobile"
                     >
@@ -414,6 +458,7 @@ export function CheckoutModal({
                       href={abaPayLink}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={handleAbaLinkClick}
                       className="mt-3 w-full max-w-xs py-2.5 px-4 rounded-xl bg-[#003755] hover:bg-[#00263d] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
                     >
                       <ExternalLink className="w-4 h-4" />

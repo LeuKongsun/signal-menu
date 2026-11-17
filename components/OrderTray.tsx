@@ -28,6 +28,10 @@ interface OrderTrayProps {
   onClearTray: () => void;
   onProceedToCheckout: () => void;
   currencyMode: "both" | "usd" | "khr";
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Inside Telegram the floating bar and primary button are replaced by Telegram's own bottom button. */
+  nativeButtons?: boolean;
 }
 
 export function OrderTray({
@@ -37,8 +41,11 @@ export function OrderTray({
   onClearTray,
   onProceedToCheckout,
   currencyMode,
+  isOpen,
+  onOpenChange,
+  nativeButtons = false,
 }: OrderTrayProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const setIsOpen = onOpenChange;
   const [copied, setCopied] = useState(false);
 
   const totalCount = tray.reduce((sum, i) => sum + i.quantity, 0);
@@ -68,7 +75,11 @@ export function OrderTray({
   return (
     <>
       {/* Floating Bottom Bar */}
-      <div className="fixed bottom-4 left-0 right-0 z-40 px-4 max-w-lg mx-auto pointer-events-none">
+      <div
+        className={`fixed bottom-4 left-0 right-0 z-40 px-4 max-w-lg mx-auto pointer-events-none ${
+          nativeButtons ? "hidden" : ""
+        }`}
+      >
         <button
           onClick={() => setIsOpen(true)}
           className="pointer-events-auto w-full bg-[#8E583C] text-white rounded-2xl p-3.5 shadow-2xl flex items-center justify-between border border-[#A76947] hover:bg-[#7D4C33] active:scale-[0.98] transition-all"
@@ -242,15 +253,17 @@ export function OrderTray({
               </div>
 
               {/* Primary Order & Pay Button */}
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  onProceedToCheckout();
-                }}
-                className="w-full py-3 px-4 rounded-2xl bg-[#8E583C] text-white font-extrabold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/25 flex items-center justify-center gap-2"
-              >
-                <span>Place Order &amp; Pay (កុម្ម៉ង់ និងទូទាត់)</span>
-              </button>
+              {!nativeButtons && (
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    onProceedToCheckout();
+                  }}
+                  className="w-full py-3 px-4 rounded-2xl bg-[#8E583C] text-white font-extrabold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/25 flex items-center justify-center gap-2"
+                >
+                  <span>Place Order &amp; Pay (កុម្ម៉ង់ និងទូទាត់)</span>
+                </button>
+              )}
 
               {/* Secondary actions */}
               <div className="grid grid-cols-2 gap-2 pt-1">

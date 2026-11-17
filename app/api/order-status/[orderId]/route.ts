@@ -7,7 +7,7 @@ export async function GET(
 ) {
   const { orderId } = await params;
 
-  const record = getOrder(orderId.toUpperCase());
+  const record = await getOrder(orderId);
 
   if (!record) {
     // Order not found — could be a cold-start reset or bad ID

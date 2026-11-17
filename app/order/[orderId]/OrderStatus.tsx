@@ -121,7 +121,7 @@ export function OrderStatus() {
           <h2 className="text-lg font-black text-stone-900">Order not found</h2>
           <p className="text-sm text-stone-500">
             We couldn&apos;t find order <strong className="text-[#8E583C]">{orderId}</strong>.
-            This can happen if the server restarted. Please check with the barista.
+            Please check the order number, or ask the barista.
           </p>
           <Link
             href="/"
@@ -303,7 +303,7 @@ export function OrderStatus() {
                   <p className="text-stone-400 font-khmer truncate">{item.nameKh}</p>
                 </div>
                 <span className="text-stone-500 shrink-0 font-medium">
-                  {(item.priceRiel * item.quantity).toLocaleString()}៛
+                  {item.priceRiel.toLocaleString()}៛
                 </span>
               </div>
             ))}

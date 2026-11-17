@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   parseTelegramChatIds,
-  rememberOrderCopies,
   sendOrderMessage,
+  sendTelegramText,
+  verifyTelegramInitData,
+  type InlineKeyboard,
   type OrderCopy,
+  type TelegramUser,
 } from "@/lib/telegram";
-import { createOrder } from "@/lib/orderStore";
+import { createOrder, saveOrder, type OrderRecord } from "@/lib/orderStore";
+import {
+  customerReceiptText,
+  PENDING_STATUS_LINE,
+  staffOrderText,
+} from "@/lib/orderMessages";
 
 interface OrderItemInput {
   nameKh: string;
@@ -26,11 +34,25 @@ interface OrderDataInput {
   items: OrderItemInput[];
 }
 
+async function storeWithUniqueNumber(
+  base: Omit<OrderRecord, "orderNumber">
+): Promise<OrderRecord> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const record = {
+      ...base,
+      orderNumber: `SIG-${Math.floor(1000 + Math.random() * 9000)}`,
+    };
+    if (await createOrder(record)) return record;
+  }
+  throw new Error("Could not allocate an order number, please try again");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const rawOrderData = formData.get("orderData") as string | null;
     const receiptFile = formData.get("receipt") as File | null;
+    const telegramInitData = formData.get("telegramInitData") as string | null;
 
     if (!rawOrderData) {
       return NextResponse.json(
@@ -40,65 +62,42 @@ export async function POST(req: NextRequest) {
     }
 
     const order = JSON.parse(rawOrderData) as OrderDataInput;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const chatIds = parseTelegramChatIds(process.env.TELEGRAM_CHAT_ID);
 
-    // Generate official Order Number on server
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const orderNumber = `SIG-${randomSuffix}`;
+    let telegramUser: TelegramUser | null = null;
+    if (telegramInitData && botToken) {
+      telegramUser = verifyTelegramInitData(telegramInitData, botToken);
+      if (!telegramUser) {
+        console.warn("Order sent with Telegram data that failed verification; treating it as a web order.");
+      }
+    }
 
-    // Store order in memory so the status page can poll it
     const now = new Date().toISOString();
-    createOrder({
-      orderNumber,
+    const record = await storeWithUniqueNumber({
       customerName: order.customerName,
+      customerPhone: order.customerPhone || undefined,
+      customerNotes: order.customerNotes || undefined,
       status: "pending",
       items: order.items,
       totalRiel: order.totalRiel,
       totalUsd: order.totalUsd,
       paymentMethod: order.paymentMethod,
+      customerTelegram: telegramUser
+        ? {
+            id: telegramUser.id,
+            name: [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(" "),
+            username: telegramUser.username,
+          }
+        : undefined,
       createdAt: now,
       updatedAt: now,
     });
-
-    // Format item lines
-    const itemsText = order.items
-      .map(
-        (i: OrderItemInput, idx: number) =>
-          `${idx + 1}. <b>${i.nameKh}</b> / ${i.nameEn}${i.size ? ` (${i.size})` : ""}\n   ↳ <b>${i.quantity}x</b> • ${i.priceRiel.toLocaleString()}៛ ($${i.priceUsd.toFixed(2)})`
-      )
-      .join("\n");
-
-    const timeString = new Date().toLocaleTimeString("en-US", {
-      timeZone: "Asia/Phnom_Penh",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    const paymentLabel =
-      order.paymentMethod === "aba"
-        ? "✅ <b>ABA KHQR (Receipt Attached)</b>"
-        : "💵 <b>Cash on Pickup</b>";
-
-    const caption = [
-      `☕ <b>NEW SIGNAL ORDER #${orderNumber}</b>`,
-      `🔴 <b>Status: PENDING REVIEW</b>`,
-      `--------------------------------`,
-      `👤 <b>Customer:</b> ${order.customerName}`,
-      order.customerPhone ? `📞 <b>Phone:</b> ${order.customerPhone}` : null,
-      `💳 <b>Payment:</b> ${paymentLabel}`,
-      `--------------------------------`,
-      `<b>DRINKS LIST:</b>`,
-      itemsText,
-      `--------------------------------`,
-      `💰 <b>TOTAL:</b> <b>${order.totalRiel.toLocaleString()} ៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
-      order.customerNotes ? `\n📝 <b>Note:</b> <i>${order.customerNotes}</i>` : null,
-      `--------------------------------`,
-      `⏰ <i>Time: ${timeString}</i>`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const { orderNumber } = record;
+    const caption = staffOrderText(record, PENDING_STATUS_LINE);
 
     // Interactive buttons for Baristas
-    const inlineKeyboard = {
+    const inlineKeyboard: InlineKeyboard = {
       inline_keyboard: [
         [
           {
@@ -112,9 +111,6 @@ export async function POST(req: NextRequest) {
         ],
       ],
     };
-
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatIds = parseTelegramChatIds(process.env.TELEGRAM_CHAT_ID);
 
     // If Telegram credentials are not yet added, simulate success and log to console
     if (!botToken || chatIds.length === 0) {
@@ -167,13 +163,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (sentCopies.length === 0) {
+      record.status = "cancelled";
+      await saveOrder(record);
       return NextResponse.json(
         { success: false, error: failures[0] || "Failed to send order to Telegram" },
         { status: 500 }
       );
     }
 
-    rememberOrderCopies(orderNumber, sentCopies);
+    record.staffCopies = sentCopies;
+    await saveOrder(record);
 
     if (failures.length > 0) {
       console.error(
@@ -182,9 +181,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (telegramUser) {
+      const receipt = await sendTelegramText(
+        botToken,
+        telegramUser.id,
+        customerReceiptText(record),
+        {
+          inline_keyboard: [
+            [
+              {
+                text: "📍 Track order",
+                web_app: { url: `${req.nextUrl.origin}/order/${orderNumber}` },
+              },
+            ],
+          ],
+        }
+      );
+      if (!receipt.ok) {
+        console.warn(`Could not message customer ${telegramUser.id}:`, receipt.description);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       orderNumber,
+      viaTelegram: Boolean(telegramUser),
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Internal server error";
