@@ -163,6 +163,13 @@ export async function POST(req: NextRequest) {
     );
 
     // 4. Update the customer's receipt and alert them, if they ordered through the Mini App
+    if (!record) {
+      console.warn(
+        `Order ${orderNumber} is not in storage, so the customer can't be notified. Is Upstash Redis connected (KV_REST_API_URL / KV_REST_API_TOKEN)?`
+      );
+    } else if (!record.customerTelegram) {
+      console.info(`Order ${orderNumber} wasn't placed from the Telegram Mini App; no customer chat to notify.`);
+    }
     if (record?.customerTelegram) {
       const customerChatId = record.customerTelegram.id;
       const receipt = record.customerReceipt;
