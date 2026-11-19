@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   outputFileTracingIncludes: {
-    "/api/order": ["./assets/fonts/**/*"],
+    "/api/order": ["./assets/fonts/**/*", "./public/aba-qr.jpg"],
     "/api/telegram-webhook": [
       "./assets/fonts/**/*",
       "./public/drinks/**/*",

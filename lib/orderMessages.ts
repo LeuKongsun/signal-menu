@@ -1,5 +1,6 @@
 import type { OrderRecord, OrderStatus } from "@/lib/orderStore";
 import { escapeHtml, type InlineKeyboard } from "@/lib/telegram";
+import { ABA_ACCOUNT_NAME, ABA_ACCOUNT_NUMBER, ABA_PAY_LINK } from "@/lib/aba";
 export const PENDING_STATUS_LINE = `🔴 <b>Status: PENDING REVIEW</b>`;
 
 /** Barista buttons for an order in the given status. */
@@ -43,7 +44,11 @@ export function staffOrderText(order: OrderRecord, statusLine: string) {
   const paymentLabel =
     order.paymentMethod === "cash"
       ? "💵 <b>Cash on Pickup</b>"
-      : "🏦 <b>ABA KHQR</b> (check the ABA app before confirming)";
+      : order.abaPayment === "unpaid"
+        ? "⏳ <b>ABA KHQR — waiting for the customer to pay</b>"
+        : order.abaPayment === "reported"
+          ? "💰 <b>ABA KHQR — customer says paid</b> (check the ABA app)"
+          : "🏦 <b>ABA KHQR</b> (check the ABA app before confirming)";
 
   const tg = order.customerTelegram;
   const telegramLine = tg
@@ -106,7 +111,14 @@ function progressLine(status: OrderStatus) {
 /** Receipt text; leave out the item list when it's the caption of the receipt image. */
 export function customerReceiptText(order: OrderRecord, { withItems = true } = {}) {
   const [headline, headlineKh] = RECEIPT_HEADLINES[order.status];
-  const paymentText = order.paymentMethod === "cash" ? "Cash at pickup" : "ABA KHQR";
+  const paymentText =
+    order.paymentMethod === "cash"
+      ? "Cash at pickup"
+      : order.abaPayment === "unpaid"
+        ? "ABA KHQR (not paid yet)"
+        : order.abaPayment === "reported"
+          ? "ABA KHQR (marked as paid ✅)"
+          : "ABA KHQR";
 
   return [
     `🧾 <b>SIGNAL Cafe · Order #${order.orderNumber}</b>`,
@@ -136,6 +148,63 @@ export function customerReceiptKeyboard(
         web_app: { url: `${origin}/order/${order.orderNumber}` },
       };
   return { inline_keyboard: [[button]] };
+}
+
+function amountLine(order: OrderRecord) {
+  return `Amount: <b>${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`;
+}
+
+/** Caption of the ABA QR the bot sends after an ABA order. */
+export function abaPaymentText(order: OrderRecord) {
+  const n = order.orderNumber;
+  const paid = order.abaPayment === "reported";
+
+  if (order.status === "cancelled") {
+    return paid
+      ? `❌ <b>Order #${n} was cancelled.</b>\nYou marked it as paid, so please speak to our staff about a refund.`
+      : `❌ <b>Order #${n} was cancelled.</b> No need to pay.\nការកម្ម៉ង់ត្រូវបានលុបចោល`;
+  }
+  if (paid) {
+    return [
+      `✅ <b>Payment marked as sent · #${n}</b>`,
+      amountLine(order),
+      ``,
+      `Thank you! The barista will check it in the ABA app.`,
+      `សូមអរគុណ! យើងនឹងពិនិត្យការបង់ប្រាក់របស់អ្នក`,
+    ].join("\n");
+  }
+  if (order.status === "ready") {
+    return [`💳 <b>Pay for order #${n}</b>`, amountLine(order)].join("\n");
+  }
+  return [
+    `💳 <b>Pay for order #${n}</b>`,
+    amountLine(order),
+    `ABA: ${escapeHtml(ABA_ACCOUNT_NUMBER)} (${escapeHtml(ABA_ACCOUNT_NAME)})`,
+    ``,
+    `1. Save this QR and scan it in ABA, or tap <b>Open ABA to pay</b>`,
+    `2. Pay the exact amount`,
+    `3. Come back here and tap <b>✅ I've paid</b>`,
+    ``,
+    `សូមបង់ប្រាក់តាម ABA រួចចុច «✅ I've paid»`,
+  ].join("\n");
+}
+
+export function abaPaymentKeyboard(order: OrderRecord, origin: string): InlineKeyboard {
+  const isClosed = order.status === "ready" || order.status === "cancelled";
+  if (order.abaPayment === "unpaid" && !isClosed) {
+    return {
+      inline_keyboard: [
+        [{ text: "💳 Open ABA to pay", url: ABA_PAY_LINK }],
+        [{ text: "✅ I've paid", callback_data: `paid:${order.orderNumber}` }],
+      ],
+    };
+  }
+  return customerReceiptKeyboard(order, origin);
+}
+
+/** Sent to staff as a reply to the order, since edits alone don't notify them. */
+export function staffPaidAlertText(order: OrderRecord) {
+  return `💰 <b>#${order.orderNumber}: ${escapeHtml(order.customerName)} says the ABA payment is sent</b> (${order.totalRiel.toLocaleString("en-US")}៛). Please check the ABA app.`;
 }
 
 const STATUS_ALERTS: Partial<Record<OrderStatus, (n: string) => string>> = {

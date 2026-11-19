@@ -33,6 +33,7 @@ export async function GET(
       totalRiel: record.totalRiel,
       totalUsd: record.totalUsd,
       paymentMethod: record.paymentMethod,
+      abaPayment: record.abaPayment,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     },

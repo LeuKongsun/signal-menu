@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import {
   parseTelegramChatIds,
@@ -13,6 +15,8 @@ import {
   type OrderRecord,
 } from "@/lib/orderStore";
 import {
+  abaPaymentKeyboard,
+  abaPaymentText,
   customerReceiptKeyboard,
   customerReceiptText,
   PENDING_STATUS_LINE,
@@ -85,6 +89,17 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    // The ABA QR is sent in the bot chat, so ABA orders have to come from the Mini App
+    if (order.paymentMethod === "aba" && !telegramUser && botToken && chatIds.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "ABA payment is only available when ordering in Telegram. Please choose cash at pickup.",
+        },
+        { status: 400 }
+      );
+    }
+
     const now = new Date().toISOString();
     const record = await storeWithUniqueNumber({
       customerName: order.customerName,
@@ -95,6 +110,7 @@ export async function POST(req: NextRequest) {
       totalRiel: order.totalRiel,
       totalUsd: order.totalUsd,
       paymentMethod: order.paymentMethod,
+      abaPayment: order.paymentMethod === "aba" ? "unpaid" : undefined,
       staffStatusLine: PENDING_STATUS_LINE,
       customerTelegram: telegramUser
         ? {
@@ -196,6 +212,28 @@ export async function POST(req: NextRequest) {
         await saveOrder(record);
       } else {
         console.warn(`Could not message customer ${telegramUser.id}:`, receipt.description);
+      }
+
+      if (record.abaPayment === "unpaid") {
+        let qr: Uint8Array | null = null;
+        try {
+          qr = new Uint8Array(await readFile(path.join(process.cwd(), "public", "aba-qr.jpg")));
+        } catch (err) {
+          console.error("Could not read public/aba-qr.jpg:", err);
+        }
+        const payment = await sendOrderMessage({
+          botToken,
+          chatId: String(telegramUser.id),
+          text: abaPaymentText(record),
+          replyMarkup: abaPaymentKeyboard(record, req.nextUrl.origin),
+          photo: qr ? { bytes: qr, name: "signal-aba-qr.jpg", type: "image/jpeg" } : null,
+        });
+        if (payment.ok && payment.result) {
+          record.paymentMessage = { messageId: payment.result.message_id, isPhoto: Boolean(qr) };
+          await saveOrder(record);
+        } else {
+          console.warn(`Could not send the ABA QR for ${orderNumber}:`, payment.description);
+        }
       }
     }
 

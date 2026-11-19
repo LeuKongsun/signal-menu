@@ -6,20 +6,12 @@ import {
   QrCode,
   Banknote,
   CheckCircle2,
-  Copy,
-  Check,
   Loader2,
   AlertCircle,
-  ExternalLink,
 } from "lucide-react";
 import { TrayItem } from "./OrderTray";
 import type { TelegramWebApp } from "@/lib/useTelegramWebApp";
-import {
-  ABA_ACCOUNT_NAME,
-  ABA_ACCOUNT_NUMBER,
-  ABA_PAY_LINK,
-  ABA_PAYMENT_ENABLED,
-} from "@/lib/aba";
+import { ABA_PAYMENT_ENABLED } from "@/lib/aba";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -42,8 +34,10 @@ export function CheckoutModal({
   );
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
+  // The bot sends the ABA QR in the chat, so ABA needs Telegram
+  const abaAvailable = ABA_PAYMENT_ENABLED && Boolean(telegram);
   const [paymentMethod, setPaymentMethod] = useState<"aba" | "cash">(
-    ABA_PAYMENT_ENABLED ? "aba" : "cash"
+    abaAvailable ? "aba" : "cash"
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -53,30 +47,12 @@ export function CheckoutModal({
     message?: string;
     viaTelegram?: boolean;
   } | null>(null);
-  const [copiedAcc, setCopiedAcc] = useState(false);
-
-  const abaAccName = ABA_ACCOUNT_NAME;
-  const abaAccNumber = ABA_ACCOUNT_NUMBER;
-  const abaPayLink = ABA_PAY_LINK;
 
   const totalCount = tray.reduce((sum, i) => sum + i.quantity, 0);
   const totalUsd = tray.reduce((sum, i) => sum + i.price.usd * i.quantity, 0);
   const totalRiel = tray.reduce((sum, i) => sum + i.price.riel * i.quantity, 0);
 
   if (!isOpen) return null;
-
-  // Telegram's in-app browser often won't hand ABA links to the ABA app, so open them outside Telegram
-  const handleAbaLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!telegram) return;
-    e.preventDefault();
-    telegram.openLink(abaPayLink);
-  };
-
-  const handleCopyAccount = () => {
-    navigator.clipboard.writeText(abaAccNumber.replace(/\s+/g, ""));
-    setCopiedAcc(true);
-    setTimeout(() => setCopiedAcc(false), 2000);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,11 +142,7 @@ export function CheckoutModal({
             </div>
             <div>
               <h3 className="font-bold text-stone-900 text-base leading-tight">
-                {completedOrder
-                  ? "Order Confirmed"
-                  : ABA_PAYMENT_ENABLED
-                    ? "Confirm & Pay"
-                    : "Confirm Order"}
+                {completedOrder ? "Order Confirmed" : "Confirm Order"}
               </h3>
               <p className="text-xs text-stone-500 font-khmer">
                 {completedOrder
@@ -239,7 +211,18 @@ export function CheckoutModal({
                 </div>
               )}
 
-              {completedOrder.viaTelegram ? (
+              {completedOrder.viaTelegram && paymentMethod === "aba" ? (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-left text-xs text-amber-900">
+                  <p className="font-bold text-sm">💳 Next: pay in the chat</p>
+                  <p className="mt-0.5">
+                    We sent the ABA QR to the SIGNAL bot chat. Pay there, then tap{" "}
+                    <strong>✅ I&apos;ve paid</strong>. Your receipt and order updates are in the chat too.
+                  </p>
+                  <p className="font-khmer mt-1 text-amber-800">
+                    សូមត្រឡប់ទៅឆាត ដើម្បីបង់ប្រាក់តាម ABA
+                  </p>
+                </div>
+              ) : completedOrder.viaTelegram ? (
                 <p className="text-xs text-stone-600">
                   📩 We sent your receipt to the SIGNAL bot chat and will message
                   you there when your drinks are ready.
@@ -345,7 +328,7 @@ export function CheckoutModal({
                   2. Payment Method (វិធីសាស្ត្រទូទាត់)
                 </div>
 
-                {ABA_PAYMENT_ENABLED && (
+                {abaAvailable && (
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -369,7 +352,7 @@ export function CheckoutModal({
                         <div className="font-bold text-xs text-stone-900 leading-tight">
                           ABA KHQR
                         </div>
-                        <div className="text-[10px] text-stone-500">Scan & Upload</div>
+                        <div className="text-[10px] text-stone-500">QR sent in chat</div>
                       </div>
                     </button>
 
@@ -402,73 +385,20 @@ export function CheckoutModal({
                 )}
               </div>
 
-              {/* Step 3: Payment Details (QR & Upload) */}
               {paymentMethod === "aba" ? (
-                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-stone-200 space-y-4">
-                  {/* Amount to pay */}
-                  <div className="text-center pb-2 border-b border-stone-200">
-                    <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
-                      Total Amount to Transfer
-                    </span>
-                    <div className="font-black text-2xl text-[#8E583C]">
-                      {totalRiel.toLocaleString()} ៛
-                    </div>
-                    <div className="text-xs font-bold text-stone-600">
-                      ≈ ${totalUsd.toFixed(2)} USD
-                    </div>
+                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-stone-200 text-xs text-stone-700 space-y-1">
+                  <div className="font-bold text-sm text-stone-900 flex items-center gap-1.5">
+                    <QrCode className="w-4 h-4" />
+                    <span>Pay with ABA in the chat</span>
                   </div>
-
-                  {/* ABA QR Code Card & Direct App Link */}
-                  <div className="flex flex-col items-center">
-                    <a
-                      href={abaPayLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={handleAbaLinkClick}
-                      className="group/qr block relative w-52 sm:w-60 bg-white p-2 rounded-2xl shadow-sm border border-stone-200 hover:border-[#003755] hover:shadow-md transition-all overflow-hidden"
-                      title="Tap QR to open in ABA Mobile"
-                    >
-                      <img
-                        src="/aba-qr.jpg"
-                        alt="SIGNAL ABA KHQR"
-                        className="w-full h-auto object-contain rounded-xl"
-                      />
-                      <div className="absolute inset-x-2 bottom-2 bg-[#003755]/95 backdrop-blur-xs text-white text-[11px] font-bold py-1.5 px-2 text-center rounded-b-xl flex items-center justify-center gap-1.5 opacity-90 group-hover/qr:opacity-100 transition-opacity">
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Tap QR to Open ABA</span>
-                      </div>
-                    </a>
-
-                    {/* Direct Button for Mobile Users */}
-                    <a
-                      href={abaPayLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={handleAbaLinkClick}
-                      className="mt-3 w-full max-w-xs py-2.5 px-4 rounded-xl bg-[#003755] hover:bg-[#00263d] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>Open in ABA Mobile App (បើកក្នុង ABA)</span>
-                    </a>
-
-                    {/* Account manual copy fallback */}
-                    <div className="mt-2.5 flex items-center gap-1.5 text-xs text-stone-600 bg-white px-3 py-1.5 rounded-xl border border-stone-200 shadow-2xs">
-                      <span>ABA: {abaAccNumber} ({abaAccName})</span>
-                      <button
-                        type="button"
-                        onClick={handleCopyAccount}
-                        className="p-1 rounded text-stone-400 hover:text-stone-700"
-                        title="Copy account number"
-                      >
-                        {copiedAcc ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
+                  <p>
+                    After you place the order, the SIGNAL bot sends you the ABA QR for{" "}
+                    <strong>{totalRiel.toLocaleString()} ៛</strong>. Pay there, then tap{" "}
+                    <strong>✅ I&apos;ve paid</strong>.
+                  </p>
+                  <p className="font-khmer text-stone-500">
+                    បន្ទាប់ពីកម្ម៉ង់ យើងនឹងផ្ញើ QR ABA ទៅក្នុងឆាត
+                  </p>
                 </div>
               ) : (
                 // Cash Note

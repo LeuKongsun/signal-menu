@@ -13,11 +13,15 @@ import {
   type OrderStatus,
 } from "@/lib/orderStore";
 import {
+  abaPaymentKeyboard,
+  abaPaymentText,
   customerReceiptKeyboard,
   customerReceiptText,
   customerStatusText,
+  PENDING_STATUS_LINE,
   staffKeyboard,
   staffOrderText,
+  staffPaidAlertText,
 } from "@/lib/orderMessages";
 import { renderStatusCard, type StatusCard } from "@/lib/statusCard";
 
@@ -26,6 +30,67 @@ const ACTION_STATUS: Record<string, OrderStatus> = {
   pickup: "ready",
   cancel: "cancelled",
 };
+
+type CallbackQuery = {
+  id: string;
+  from: { id: number };
+  message?: { message_id: number; chat: { id: number }; photo?: unknown[] };
+};
+
+/** Customer tapped "I've paid" under the ABA QR: record it and tell the staff. */
+async function handleAbaPaid(
+  botToken: string,
+  callbackQuery: CallbackQuery,
+  orderNumber: string,
+  origin: string
+) {
+  const record = await getOrder(orderNumber);
+  if (!record || record.customerTelegram?.id !== callbackQuery.from.id) {
+    await answerCallbackQuery(botToken, callbackQuery.id, "Sorry, we couldn't find this order.");
+    return;
+  }
+  if (record.status === "cancelled" || record.status === "ready") {
+    await answerCallbackQuery(botToken, callbackQuery.id, `Order #${orderNumber} is already ${record.status === "ready" ? "completed" : "cancelled"}.`);
+    return;
+  }
+  if (record.abaPayment === "reported") {
+    await answerCallbackQuery(botToken, callbackQuery.id, "Already marked as paid. Thank you!");
+    return;
+  }
+
+  record.abaPayment = "reported";
+  record.updatedAt = new Date().toISOString();
+  await saveOrder(record);
+  await answerCallbackQuery(botToken, callbackQuery.id, "Thank you! The barista will check your payment.");
+
+  const customerChatId = record.customerTelegram.id;
+  const message = callbackQuery.message;
+  const paymentMessage = message
+    ? { chatId: message.chat.id, messageId: message.message_id, isPhoto: Boolean(message.photo?.length) }
+    : record.paymentMessage
+      ? { chatId: customerChatId, ...record.paymentMessage }
+      : null;
+
+  const staffText = staffOrderText(record, record.staffStatusLine ?? PENDING_STATUS_LINE);
+  const staffButtons = staffKeyboard(orderNumber, record.status);
+  const copies = record.staffCopies ?? [];
+
+  await Promise.all([
+    paymentMessage &&
+      editOrderMessage(botToken, paymentMessage, abaPaymentText(record), abaPaymentKeyboard(record, origin)),
+    record.customerReceipt &&
+      editOrderMessage(
+        botToken,
+        { chatId: customerChatId, ...record.customerReceipt },
+        customerReceiptText(record, { withItems: !record.customerReceipt.isPhoto }),
+        customerReceiptKeyboard(record, origin)
+      ),
+    ...copies.map((copy) => editOrderMessage(botToken, copy, staffText, staffButtons)),
+    ...copies.map((copy) =>
+      sendTelegramText(botToken, copy.chatId, staffPaidAlertText(record), undefined, copy.messageId)
+    ),
+  ]);
+}
 
 export async function GET() {
   return NextResponse.json({
@@ -89,6 +154,11 @@ export async function POST(req: NextRequest) {
     }
 
     const [action, orderNumber] = data.split(":");
+    if (action === "paid" && orderNumber) {
+      await handleAbaPaid(botToken, callbackQuery, orderNumber, req.nextUrl.origin);
+      return NextResponse.json({ ok: true, status: action, orderNumber });
+    }
+
     const nextStatus = ACTION_STATUS[action];
     if (!nextStatus || !orderNumber) {
       await answerCallbackQuery(botToken, callbackId, "Unknown action");
@@ -185,6 +255,17 @@ export async function POST(req: NextRequest) {
         if (!edited.ok) {
           console.warn(`Could not update receipt for ${orderNumber}:`, edited.description);
         }
+      }
+
+      // Take the pay buttons off the ABA QR once the order is closed
+      const payment = record.paymentMessage;
+      if (payment && (record.status === "ready" || record.status === "cancelled")) {
+        await editOrderMessage(
+          botToken,
+          { chatId: customerChatId, ...payment },
+          abaPaymentText(record),
+          abaPaymentKeyboard(record, req.nextUrl.origin)
+        );
       }
 
       const text = customerStatusText(record);

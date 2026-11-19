@@ -24,6 +24,7 @@ interface OrderData {
   totalRiel: number;
   totalUsd: number;
   paymentMethod: "aba" | "cash";
+  abaPayment?: "unpaid" | "reported";
   createdAt: string;
   updatedAt: string;
 }
@@ -261,7 +262,15 @@ export function OrderStatus() {
             </div>
             <div className="flex justify-between text-xs text-stone-400">
               <span>Payment</span>
-              <span>{order.paymentMethod === "aba" ? "ABA KHQR" : "Cash at pickup"}</span>
+              <span>
+                {order.paymentMethod === "cash"
+                  ? "Cash at pickup"
+                  : order.abaPayment === "unpaid"
+                    ? "ABA KHQR (not paid yet — pay in the chat)"
+                    : order.abaPayment === "reported"
+                      ? "ABA KHQR (marked as paid)"
+                      : "ABA KHQR"}
+              </span>
             </div>
           </div>
         </div>

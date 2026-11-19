@@ -24,6 +24,10 @@ export interface OrderRecord {
   customerTelegram?: { id: number; name: string; username?: string };
   /** The receipt message in the customer's chat, kept up to date as the status changes. */
   customerReceipt?: { messageId: number; isPhoto: boolean };
+  /** ABA orders: "unpaid" until the customer taps "I've paid" under the QR the bot sent. */
+  abaPayment?: "unpaid" | "reported";
+  /** The ABA QR message in the customer's chat. */
+  paymentMessage?: { messageId: number; isPhoto: boolean };
   /** Current status line on the staff message, so later edits can rebuild it. */
   staffStatusLine?: string;
   /** The order message in each admin/seller chat, so every copy can be updated together. */
