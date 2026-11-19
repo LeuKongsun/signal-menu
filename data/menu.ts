@@ -382,9 +382,9 @@ export const MENU_ITEMS: MenuItem[] = [
     description: "Deep blueberry fruit blended icy refreshingly sweet",
   },
   {
-    id: "jasmine-passion-cream",
-    nameKh: "ផ្កាម្លិះ / ក្រូចវល្លិ៍គ្រីម",
-    nameEn: "Jasmine/Passion Cream",
+    id: "jasmine-cream",
+    nameKh: "ផ្កាម្លិះគ្រីម",
+    nameEn: "Jasmine Cream",
     category: "frappes",
     image: "/drinks/jasmine-passion-cream.png",
     prices: {
@@ -392,7 +392,20 @@ export const MENU_ITEMS: MenuItem[] = [
       large: { riel: 8000, usd: 2.00 },
     },
     tag: "Specialty",
-    description: "Floral jasmine and passion fruit topped with sweet creamy velvet",
+    description: "Floral jasmine tea topped with sweet creamy velvet",
+  },
+  {
+    id: "passion-cream",
+    nameKh: "ក្រូចវល្លិ៍គ្រីម",
+    nameEn: "Passion Cream",
+    category: "frappes",
+    image: "/drinks/jasmine-passion-cream.png",
+    prices: {
+      regular: { riel: 7000, usd: 1.75 },
+      large: { riel: 8000, usd: 2.00 },
+    },
+    tag: "Specialty",
+    description: "Tangy passion fruit topped with sweet creamy velvet",
   },
 
   // --- TEA ---

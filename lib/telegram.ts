@@ -194,6 +194,15 @@ export function editOrderMessage(
       });
 }
 
+/** Bots can delete their own messages for up to 48 hours. */
+export function deleteTelegramMessage(
+  botToken: string,
+  chatId: string | number,
+  messageId: number
+): Promise<TelegramResult> {
+  return callTelegram(botToken, "deleteMessage", { chat_id: chatId, message_id: messageId });
+}
+
 /** The message the current one belongs to, plus every other stored copy, without duplicates. */
 export function mergeCopies(current: OrderCopy, stored: OrderCopy[] = []): OrderCopy[] {
   const merged = new Map<string, OrderCopy>();

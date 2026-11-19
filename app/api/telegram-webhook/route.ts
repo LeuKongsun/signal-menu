@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   answerCallbackQuery,
+  deleteTelegramMessage,
   editOrderMessage,
   escapeHtml,
   mergeCopies,
   sendOrderMessage,
   sendTelegramText,
+  type InlineKeyboard,
+  type OrderCopy,
 } from "@/lib/telegram";
 import {
   getOrder,
@@ -21,7 +24,6 @@ import {
   PENDING_STATUS_LINE,
   staffKeyboard,
   staffOrderText,
-  staffPaidAlertText,
 } from "@/lib/orderMessages";
 import { renderStatusCard, type StatusCard } from "@/lib/statusCard";
 
@@ -73,9 +75,11 @@ async function handleAbaPaid(
 
   const staffText = staffOrderText(record, record.staffStatusLine ?? PENDING_STATUS_LINE);
   const staffButtons = staffKeyboard(orderNumber, record.status);
-  const copies = record.staffCopies ?? [];
 
-  await Promise.all([
+  const [bumpedCopies] = await Promise.all([
+    Promise.all(
+      (record.staffCopies ?? []).map((copy) => bumpStaffCopy(botToken, copy, staffText, staffButtons))
+    ),
     paymentMessage &&
       editOrderMessage(botToken, paymentMessage, abaPaymentText(record), abaPaymentKeyboard(record, origin)),
     record.customerReceipt &&
@@ -85,11 +89,37 @@ async function handleAbaPaid(
         customerReceiptText(record, { withItems: !record.customerReceipt.isPhoto }),
         customerReceiptKeyboard(record, origin)
       ),
-    ...copies.map((copy) => editOrderMessage(botToken, copy, staffText, staffButtons)),
-    ...copies.map((copy) =>
-      sendTelegramText(botToken, copy.chatId, staffPaidAlertText(record), undefined, copy.messageId)
-    ),
   ]);
+
+  record.staffCopies = bumpedCopies;
+  await saveOrder(record);
+}
+
+/**
+ * Re-posts a staff order at the bottom of its chat so paid orders are easy to find,
+ * then removes the old one. Falls back to editing in place if the re-post fails.
+ */
+async function bumpStaffCopy(
+  botToken: string,
+  copy: OrderCopy,
+  text: string,
+  buttons: InlineKeyboard
+): Promise<OrderCopy> {
+  const sent = await sendTelegramText(botToken, copy.chatId, text, buttons);
+  if (!sent.ok || !sent.result) {
+    console.warn(`Could not re-post order in chat ${copy.chatId}:`, sent.description);
+    await editOrderMessage(botToken, copy, text, buttons);
+    return copy;
+  }
+
+  const deleted = await deleteTelegramMessage(botToken, copy.chatId, copy.messageId);
+  if (!deleted.ok) {
+    // Leave no second set of buttons behind if the old message can't be deleted
+    await editOrderMessage(botToken, copy, `⬇️ Order moved down: customer paid. See the newer message.`, {
+      inline_keyboard: [],
+    });
+  }
+  return { chatId: copy.chatId, messageId: sent.result.message_id, isPhoto: false };
 }
 
 export async function GET() {

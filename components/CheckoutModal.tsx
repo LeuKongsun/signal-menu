@@ -236,29 +236,31 @@ export function CheckoutModal({
                 </p>
               )}
 
-              {telegram && (
+              {/* In Telegram the next steps (payment, tracking) are in the bot chat, so that's the only way forward */}
+              {telegram ? (
                 <button
                   onClick={() => telegram.close()}
-                  className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#8E583C] text-white font-bold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/20"
+                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-[#8E583C] text-white font-bold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/20"
                 >
-                  Back to chat
+                  {paymentMethod === "aba" ? "Back to chat to pay" : "Back to chat"}
                 </button>
+              ) : (
+                <>
+                  <a
+                    href={`/order/${completedOrder.orderNumber}`}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20"
+                  >
+                    📍 Track Order Status
+                  </a>
+
+                  <button
+                    onClick={handleResetAndClose}
+                    className="w-full py-3 rounded-2xl bg-stone-100 text-stone-600 font-bold text-sm hover:bg-stone-200 transition-all"
+                  >
+                    Done / New Order
+                  </button>
+                </>
               )}
-
-              {/* Track order button */}
-              <a
-                href={`/order/${completedOrder.orderNumber}`}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20"
-              >
-                📍 Track Order Status
-              </a>
-
-              <button
-                onClick={handleResetAndClose}
-                className="w-full py-3 rounded-2xl bg-stone-100 text-stone-600 font-bold text-sm hover:bg-stone-200 transition-all"
-              >
-                Done / New Order
-              </button>
             </div>
           ) : (
             // Checkout Form

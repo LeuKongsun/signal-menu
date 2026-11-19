@@ -47,7 +47,7 @@ export function staffOrderText(order: OrderRecord, statusLine: string) {
       : order.abaPayment === "unpaid"
         ? "⏳ <b>ABA KHQR — waiting for the customer to pay</b>"
         : order.abaPayment === "reported"
-          ? "💰 <b>ABA KHQR — customer says paid</b> (check the ABA app)"
+          ? `💰 <b>ABA KHQR — customer says paid</b> (check the ABA app for remark <code>${order.orderNumber}</code>)`
           : "🏦 <b>ABA KHQR</b> (check the ABA app before confirming)";
 
   const tg = order.customerTelegram;
@@ -56,7 +56,9 @@ export function staffOrderText(order: OrderRecord, statusLine: string) {
     : null;
 
   return [
-    `☕ <b>NEW SIGNAL ORDER #${order.orderNumber}</b>`,
+    order.abaPayment === "reported"
+      ? `💰 <b>PAID (ABA) · ORDER #${order.orderNumber}</b>`
+      : `☕ <b>NEW SIGNAL ORDER #${order.orderNumber}</b>`,
     statusLine,
     `--------------------------------`,
     `👤 <b>Customer:</b> ${escapeHtml(order.customerName)}`,
@@ -182,10 +184,10 @@ export function abaPaymentText(order: OrderRecord) {
     `ABA: ${escapeHtml(ABA_ACCOUNT_NUMBER)} (${escapeHtml(ABA_ACCOUNT_NAME)})`,
     ``,
     `1. Save this QR and scan it in ABA, or tap <b>Open ABA to pay</b>`,
-    `2. Pay the exact amount`,
+    `2. Pay the exact amount and type <code>${n}</code> in the remark (tap to copy)`,
     `3. Come back here and tap <b>✅ I've paid</b>`,
     ``,
-    `សូមបង់ប្រាក់តាម ABA រួចចុច «✅ I've paid»`,
+    `សូមបង់ប្រាក់តាម ABA ដោយសរសេរ <code>${n}</code> ក្នុងចំណាំ រួចចុច «✅ I've paid»`,
   ].join("\n");
 }
 
@@ -201,12 +203,6 @@ export function abaPaymentKeyboard(order: OrderRecord, origin: string): InlineKe
   }
   return customerReceiptKeyboard(order, origin);
 }
-
-/** Sent to staff as a reply to the order, since edits alone don't notify them. */
-export function staffPaidAlertText(order: OrderRecord) {
-  return `💰 <b>#${order.orderNumber}: ${escapeHtml(order.customerName)} says the ABA payment is sent</b> (${order.totalRiel.toLocaleString("en-US")}៛). Please check the ABA app.`;
-}
-
 const STATUS_ALERTS: Partial<Record<OrderStatus, (n: string) => string>> = {
   preparing: (n) =>
     `☕ <b>Order #${n} confirmed!</b> We're making your drinks now.\nកំពុងរៀបចំភេសជ្ជៈរបស់អ្នក`,

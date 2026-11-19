@@ -59,7 +59,7 @@ Ordering app for SIGNAL Cafe (Cambodia, prices in riel ៛ and USD, text in Khme
 
 - **Cash on pickup** and **ABA KHQR**. ABA is on unless `NEXT_PUBLIC_ABA_PAYMENT_ENABLED=false`, and only offered inside Telegram (the walk-in web page is cash only).
 - The Mini App shows **no QR**; checkout just places the order. For ABA orders, `/api/order` then sends the customer `public/aba-qr.jpg` in the bot chat with "💳 Open ABA to pay" (url) and "✅ I've paid" (`paid:<orderNumber>` callback). This keeps payment in the chat so closing the Mini App midway loses nothing.
-- Tapping "I've paid" (handled in the webhook's `handleAbaPaid`, customer-only) sets `abaPayment: "reported"`, swaps the buttons for "Track order", updates the receipt and staff messages, and replies to staff to check the ABA app. Text/buttons: `abaPaymentText`, `abaPaymentKeyboard`, `staffPaidAlertText` in `lib/orderMessages.ts`.
+- Tapping "I've paid" (handled in the webhook's `handleAbaPaid`, customer-only) sets `abaPayment: "reported"`, swaps the buttons for "Track order", and updates the receipt. Each staff copy is **bumped**: re-posted at the bottom of the chat as "💰 PAID (ABA)" with its buttons, and the old message deleted (`bumpStaffCopy`; `staffCopies` gets the new ids), so busy chats stay readable. Customers are asked to put the order number in the ABA remark so staff can match payments. Text/buttons: `abaPaymentText`, `abaPaymentKeyboard`, `staffOrderText` in `lib/orderMessages.ts`.
 - There is **no payment proof** (no receipt upload, no screenshot): both were removed on purpose. Staff verify in the ABA app before confirming. Don't re-add proof steps unless the owner asks.
 
 ### Gotchas
