@@ -171,8 +171,12 @@ export function abaPaymentText(order: OrderRecord) {
     return [
       `✅ <b>បានកត់ត្រាការបង់ប្រាក់ · #${n}</b>`,
       amountLine(order),
+      `ABA: ${escapeHtml(ABA_ACCOUNT_NUMBER)} (${escapeHtml(ABA_ACCOUNT_NAME)}) · ចំណាំ <code>${n}</code>`,
       ``,
       `សូមអរគុណ! បារីស្តានឹងពិនិត្យការទូទាត់ជូន។`,
+      ...(order.status === "ready"
+        ? []
+        : [`បើមិនទាន់បង់ទេ សូមចុច <b>«បើក ABA ដើម្បីបង់»</b> ខាងក្រោម។`]),
     ].join("\n");
   }
   if (order.status === "ready") {
@@ -191,15 +195,18 @@ export function abaPaymentText(order: OrderRecord) {
 
 export function abaPaymentKeyboard(order: OrderRecord, origin: string): InlineKeyboard {
   const isClosed = order.status === "ready" || order.status === "cancelled";
+  const payLink = [{ text: "💳 បើក ABA ដើម្បីបង់", url: ABA_PAY_LINK }];
   if (order.abaPayment === "unpaid" && !isClosed) {
     return {
       inline_keyboard: [
-        [{ text: "💳 បើក ABA ដើម្បីបង់", url: ABA_PAY_LINK }],
+        payLink,
         [{ text: "✅ បានបង់ប្រាក់", callback_data: `paid:${order.orderNumber}` }],
       ],
     };
   }
-  return customerReceiptKeyboard(order, origin);
+  // Keep the pay link after "I've paid" in case it was tapped before actually paying
+  const followUp = customerReceiptKeyboard(order, origin);
+  return isClosed ? followUp : { inline_keyboard: [payLink, ...followUp.inline_keyboard] };
 }
 
 const STATUS_ALERTS: Partial<Record<OrderStatus, (n: string) => string>> = {
