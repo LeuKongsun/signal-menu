@@ -184,7 +184,7 @@ export function abaPaymentText(order: OrderRecord) {
     `ABA: ${escapeHtml(ABA_ACCOUNT_NUMBER)} (${escapeHtml(ABA_ACCOUNT_NAME)})`,
     ``,
     `១. ស្កេន QR ឬចុច <b>«បើក ABA ដើម្បីបង់»</b>`,
-    `២. ដាក់ចំណាំលេខ <code>${n}</code> (ចុចដើម្បីចម្លង)`,
+    `២. ដាក់ចំណាំលេខ <code>${n}</code>`,
     `៣. បង់រួចចុច <b>«✅ បានបង់ប្រាក់»</b>`,
   ].join("\n");
 }
