@@ -1,17 +1,18 @@
 import type { OrderRecord, OrderStatus } from "@/lib/orderStore";
 import { escapeHtml, type InlineKeyboard } from "@/lib/telegram";
 import { ABA_ACCOUNT_NAME, ABA_ACCOUNT_NUMBER, ABA_PAY_LINK } from "@/lib/aba";
-export const PENDING_STATUS_LINE = `🔴 <b>Status: PENDING REVIEW</b>`;
+
+export const PENDING_STATUS_LINE = `🔴 <b>ស្ថានភាព៖ រង់ចាំពិនិត្យ</b>`;
 
 /** Barista buttons for an order in the given status. */
 export function staffKeyboard(orderNumber: string, status: OrderStatus): InlineKeyboard {
-  const cancel = { text: "❌ Cancel Order", callback_data: `cancel:${orderNumber}` };
+  const cancel = { text: "❌ លុបចោល", callback_data: `cancel:${orderNumber}` };
   if (status === "pending") {
     return {
       inline_keyboard: [
         [
-          { text: "✅ Confirm Order", callback_data: `confirm:${orderNumber}` },
-          { ...cancel, text: "❌ Cancel" },
+          { text: "✅ ទទួលកុម្ម៉ង់", callback_data: `confirm:${orderNumber}` },
+          cancel,
         ],
       ],
     };
@@ -19,7 +20,7 @@ export function staffKeyboard(orderNumber: string, status: OrderStatus): InlineK
   if (status === "preparing" || status === "confirmed") {
     return {
       inline_keyboard: [
-        [{ text: "🔔 Ready for Pickup / Picked Up", callback_data: `pickup:${orderNumber}` }],
+        [{ text: "🔔 ភេសជ្ជៈរួចរាល់", callback_data: `pickup:${orderNumber}` }],
         [cancel],
       ],
     };
@@ -43,12 +44,12 @@ export function staffOrderText(order: OrderRecord, statusLine: string) {
 
   const paymentLabel =
     order.paymentMethod === "cash"
-      ? "💵 <b>Cash on Pickup</b>"
+      ? "💵 <b>ទូទាត់ផ្ទាល់ (សាច់ប្រាក់)</b>"
       : order.abaPayment === "unpaid"
-        ? "⏳ <b>ABA KHQR — waiting for the customer to pay</b>"
+        ? "⏳ <b>ABA KHQR — រង់ចាំអតិថិជនបង់</b>"
         : order.abaPayment === "reported"
-          ? `💰 <b>ABA KHQR — customer says paid</b> (check the ABA app for remark <code>${order.orderNumber}</code>)`
-          : "🏦 <b>ABA KHQR</b> (check the ABA app before confirming)";
+          ? `💰 <b>ABA KHQR — បានបង់ប្រាក់</b> (ចំណាំ <code>${order.orderNumber}</code>)`
+          : "🏦 <b>ABA KHQR</b> (សូមពិនិត្យ ABA មុនបញ្ជាក់)";
 
   const tg = order.customerTelegram;
   const telegramLine = tg
@@ -57,22 +58,22 @@ export function staffOrderText(order: OrderRecord, statusLine: string) {
 
   return [
     order.abaPayment === "reported"
-      ? `💰 <b>PAID (ABA) · ORDER #${order.orderNumber}</b>`
-      : `☕ <b>NEW SIGNAL ORDER #${order.orderNumber}</b>`,
+      ? `💰 <b>បានបង់ប្រាក់ (ABA) · #${order.orderNumber}</b>`
+      : `☕ <b>ការកុម្ម៉ង់ថ្មី #${order.orderNumber}</b>`,
     statusLine,
     `--------------------------------`,
-    `👤 <b>Customer:</b> ${escapeHtml(order.customerName)}`,
-    order.customerPhone ? `📞 <b>Phone:</b> ${escapeHtml(order.customerPhone)}` : null,
+    `👤 <b>អតិថិជន៖</b> ${escapeHtml(order.customerName)}`,
+    order.customerPhone ? `📞 <b>ទូរស័ព្ទ៖</b> ${escapeHtml(order.customerPhone)}` : null,
     telegramLine,
-    `💳 <b>Payment:</b> ${paymentLabel}`,
+    `💳 <b>ការទូទាត់៖</b> ${paymentLabel}`,
     `--------------------------------`,
-    `<b>DRINKS LIST:</b>`,
+    `📋 <b>ភេសជ្ជៈ៖</b>`,
     itemsText,
     `--------------------------------`,
-    `💰 <b>TOTAL:</b> <b>${order.totalRiel.toLocaleString()} ៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
-    order.customerNotes ? `\n📝 <b>Note:</b> <i>${escapeHtml(order.customerNotes)}</i>` : null,
+    `💰 <b>សរុប៖</b> <b>${order.totalRiel.toLocaleString()} ៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
+    order.customerNotes ? `\n📝 <b>ចំណាំ៖</b> <i>${escapeHtml(order.customerNotes)}</i>` : null,
     `--------------------------------`,
-    `⏰ <i>Time: ${timeString}</i>`,
+    `⏰ <i>ម៉ោង៖ ${timeString}</i>`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -82,20 +83,20 @@ function itemLines(order: OrderRecord) {
   return order.items
     .map(
       (i) =>
-        `• ${escapeHtml(i.nameEn)}${i.size ? ` (${escapeHtml(i.size)})` : ""} ×${i.quantity} — ${i.priceRiel.toLocaleString("en-US")}៛`
+        `• ${escapeHtml(i.nameKh || i.nameEn)}${i.size ? ` (${escapeHtml(i.size)})` : ""} ×${i.quantity} — ${i.priceRiel.toLocaleString("en-US")}៛`
     )
     .join("\n");
 }
 
 const RECEIPT_HEADLINES: Record<OrderStatus, [string, string]> = {
-  pending: ["⏳ Waiting for the barista to confirm", "កំពុងរង់ចាំការបញ្ជាក់"],
-  confirmed: ["☕ Making your drinks", "កំពុងរៀបចំភេសជ្ជៈរបស់អ្នក"],
-  preparing: ["☕ Making your drinks", "កំពុងរៀបចំភេសជ្ជៈរបស់អ្នក"],
-  ready: ["🎉 Ready! Please collect at the counter", "ភេសជ្ជៈរបស់អ្នករួចរាល់ហើយ សូមមកទទួលនៅបញ្ជរ"],
-  cancelled: ["❌ Order cancelled", "ការកម្ម៉ង់ត្រូវបានលុបចោល"],
+  pending: ["⏳ រង់ចាំការបញ្ជាក់", "បារីស្តានឹងពិនិត្យក្នុងពេលបន្តិចទៀត"],
+  confirmed: ["☕ កំពុងធ្វើភេសជ្ជៈ", "បារីស្តាកំពុងរៀបចំជូនអ្នក"],
+  preparing: ["☕ កំពុងធ្វើភេសជ្ជៈ", "បារីស្តាកំពុងរៀបចំជូនអ្នក"],
+  ready: ["🎉 ភេសជ្ជៈរួចរាល់ហើយ!", "សូមអញ្ជើញមកទទួលនៅបញ្ជរ"],
+  cancelled: ["❌ ការកុម្ម៉ង់ត្រូវបានលុបចោល", "សូមទាក់ទងមកកាន់បារីស្តា"],
 };
 
-const PROGRESS_STEPS = ["Received", "Making", "Ready"];
+const PROGRESS_STEPS = ["បានទទួល", "កំពុងធ្វើ", "រួចរាល់"];
 const PROGRESS_INDEX: Record<OrderStatus, number> = {
   pending: 0,
   confirmed: 1,
@@ -106,7 +107,7 @@ const PROGRESS_INDEX: Record<OrderStatus, number> = {
 
 function progressLine(status: OrderStatus) {
   const current = PROGRESS_INDEX[status];
-  if (current < 0) return `Please speak to our staff if you have any questions.`;
+  if (current < 0) return `សូមសាកសួរបុគ្គលិកប្រសិនបើមានចម្ងល់។`;
   return PROGRESS_STEPS.map((step, i) => `${i <= current ? "✅" : "⚪"} ${step}`).join("  ·  ");
 }
 
@@ -115,23 +116,23 @@ export function customerReceiptText(order: OrderRecord, { withItems = true } = {
   const [headline, headlineKh] = RECEIPT_HEADLINES[order.status];
   const paymentText =
     order.paymentMethod === "cash"
-      ? "Cash at pickup"
+      ? "ទូទាត់ផ្ទាល់ (សាច់ប្រាក់)"
       : order.abaPayment === "unpaid"
-        ? "ABA KHQR (not paid yet)"
+        ? "ABA KHQR (មិនទាន់បង់)"
         : order.abaPayment === "reported"
-          ? "ABA KHQR (marked as paid ✅)"
+          ? "ABA KHQR (បានបង់ប្រាក់ ✅)"
           : "ABA KHQR";
 
   return [
-    `🧾 <b>SIGNAL Cafe · Order #${order.orderNumber}</b>`,
+    `🧾 <b>SIGNAL Cafe · #${order.orderNumber}</b>`,
     ``,
     `<b>${headline}</b>`,
     headlineKh,
     progressLine(order.status),
     ``,
     ...(withItems ? [itemLines(order), ``] : []),
-    `<b>Total: ${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
-    `Payment: ${paymentText}`,
+    `<b>សរុប៖ ${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
+    `ការទូទាត់៖ ${paymentText}`,
   ].join("\n");
 }
 
@@ -142,18 +143,18 @@ export function customerReceiptKeyboard(
   const isClosed = order.status === "ready" || order.status === "cancelled";
   const button = isClosed
     ? {
-        text: "☕ Order again",
+        text: "☕ កុម្ម៉ង់ម្ដងទៀត",
         web_app: { url: process.env.TELEGRAM_MINI_APP_URL || `${origin}/` },
       }
     : {
-        text: "📍 Track order",
+        text: "📍 តាមដានការកុម្ម៉ង់",
         web_app: { url: `${origin}/order/${order.orderNumber}` },
       };
   return { inline_keyboard: [[button]] };
 }
 
 function amountLine(order: OrderRecord) {
-  return `Amount: <b>${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`;
+  return `ចំនួនទឹកប្រាក់៖ <b>${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`;
 }
 
 /** Caption of the ABA QR the bot sends after an ABA order. */
@@ -163,31 +164,28 @@ export function abaPaymentText(order: OrderRecord) {
 
   if (order.status === "cancelled") {
     return paid
-      ? `❌ <b>Order #${n} was cancelled.</b>\nYou marked it as paid, so please speak to our staff about a refund.`
-      : `❌ <b>Order #${n} was cancelled.</b> No need to pay.\nការកម្ម៉ង់ត្រូវបានលុបចោល`;
+      ? `❌ <b>ការកុម្ម៉ង់ #${n} ត្រូវបានលុបចោល។</b>\nដោយសារអ្នកបានបង់រួច សូមទាក់ទងបារីស្តាដើម្បីទទួលប្រាក់វិញ។`
+      : `❌ <b>ការកុម្ម៉ង់ #${n} ត្រូវបានលុបចោល។</b> ពុំចាំបាច់បង់ប្រាក់ទេ។`;
   }
   if (paid) {
     return [
-      `✅ <b>Payment marked as sent · #${n}</b>`,
+      `✅ <b>បានកត់ត្រាការបង់ប្រាក់ · #${n}</b>`,
       amountLine(order),
       ``,
-      `Thank you! The barista will check it in the ABA app.`,
-      `សូមអរគុណ! យើងនឹងពិនិត្យការបង់ប្រាក់របស់អ្នក`,
+      `សូមអរគុណ! បារីស្តានឹងពិនិត្យការទូទាត់ជូន។`,
     ].join("\n");
   }
   if (order.status === "ready") {
-    return [`💳 <b>Pay for order #${n}</b>`, amountLine(order)].join("\n");
+    return [`💳 <b>ទូទាត់ប្រាក់ #${n}</b>`, amountLine(order)].join("\n");
   }
   return [
-    `💳 <b>Pay for order #${n}</b>`,
+    `💳 <b>ទូទាត់ប្រាក់ #${n}</b>`,
     amountLine(order),
     `ABA: ${escapeHtml(ABA_ACCOUNT_NUMBER)} (${escapeHtml(ABA_ACCOUNT_NAME)})`,
     ``,
-    `1. Save this QR and scan it in ABA, or tap <b>Open ABA to pay</b>`,
-    `2. Pay the exact amount and type <code>${n}</code> in the remark (tap to copy)`,
-    `3. Come back here and tap <b>✅ I've paid</b>`,
-    ``,
-    `សូមបង់ប្រាក់តាម ABA ដោយសរសេរ <code>${n}</code> ក្នុងចំណាំ រួចចុច «✅ I've paid»`,
+    `១. ស្កេន QR ឬចុច <b>«បើក ABA ដើម្បីបង់»</b>`,
+    `២. ដាក់ចំណាំលេខ <code>${n}</code> (ចុចដើម្បីចម្លង)`,
+    `៣. បង់រួចចុច <b>«✅ បានបង់ប្រាក់»</b>`,
   ].join("\n");
 }
 
@@ -196,20 +194,21 @@ export function abaPaymentKeyboard(order: OrderRecord, origin: string): InlineKe
   if (order.abaPayment === "unpaid" && !isClosed) {
     return {
       inline_keyboard: [
-        [{ text: "💳 Open ABA to pay", url: ABA_PAY_LINK }],
-        [{ text: "✅ I've paid", callback_data: `paid:${order.orderNumber}` }],
+        [{ text: "💳 បើក ABA ដើម្បីបង់", url: ABA_PAY_LINK }],
+        [{ text: "✅ បានបង់ប្រាក់", callback_data: `paid:${order.orderNumber}` }],
       ],
     };
   }
   return customerReceiptKeyboard(order, origin);
 }
+
 const STATUS_ALERTS: Partial<Record<OrderStatus, (n: string) => string>> = {
   preparing: (n) =>
-    `☕ <b>Order #${n} confirmed!</b> We're making your drinks now.\nកំពុងរៀបចំភេសជ្ជៈរបស់អ្នក`,
+    `☕ <b>ការកុម្ម៉ង់ #${n} បានបញ្ជាក់!</b>\nបារីស្តាកំពុងរៀបចំភេសជ្ជៈជូនអ្នក។`,
   ready: (n) =>
-    `🎉 <b>Order #${n} is ready!</b> Please collect it at the counter.\nភេសជ្ជៈរបស់អ្នករួចរាល់ហើយ សូមមកទទួលនៅបញ្ជរ`,
+    `🎉 <b>ការកុម្ម៉ង់ #${n} រួចរាល់ហើយ!</b>\nសូមអញ្ជើញមកទទួលភេសជ្ជៈនៅបញ្ជរ។`,
   cancelled: (n) =>
-    `❌ <b>Order #${n} was cancelled.</b> Please speak to our staff if you have any questions.\nការកម្ម៉ង់ត្រូវបានលុបចោល`,
+    `❌ <b>ការកុម្ម៉ង់ #${n} ត្រូវបានលុបចោល។</b>\nសូមទាក់ទងមកកាន់បុគ្គលិកប្រសិនបើមានចម្ងល់។`,
 };
 
 /** Short message sent as a reply to the receipt, since edits alone don't notify the customer. */

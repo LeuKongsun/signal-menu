@@ -35,16 +35,16 @@ export function PdfModal({ isOpen, onClose }: PdfModalProps) {
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-stone-900 text-base leading-tight">
-                Original Menu Document
+              <h3 className="font-bold text-stone-900 text-base leading-tight font-khmer">
+                ម៉ឺនុយដើម (PDF)
               </h3>
               <p className="text-xs text-stone-500 font-khmer">
-                ម៉ឺនុយដើមរបស់ SIGNAL Cafe
+                SIGNAL Cafe
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 font-khmer">
             <a
               href="/Signal%20Menu.pdf"
               target="_blank"
@@ -52,7 +52,7 @@ export function PdfModal({ isOpen, onClose }: PdfModalProps) {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-stone-200 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Open PDF</span>
+              <span>បើក PDF</span>
             </a>
             <a
               href="/Signal%20Menu.pdf"
@@ -60,7 +60,7 @@ export function PdfModal({ isOpen, onClose }: PdfModalProps) {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#8E583C] text-white hover:bg-[#73432B] transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Download</span>
+              <span>ទាញយក</span>
             </a>
             <button
               onClick={onClose}

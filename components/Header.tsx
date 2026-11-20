@@ -42,10 +42,6 @@ export function Header({
               </div>
               <p className="font-khmer text-sm text-stone-600 font-semibold flex items-center gap-1.5">
                 <span>ម៉ឺនុយភេសជ្ជៈ</span>
-                <span className="text-stone-300">•</span>
-                <span className="font-sans text-xs font-normal text-stone-500">
-                  Full Drink Menu
-                </span>
               </p>
             </div>
           </div>
@@ -53,7 +49,7 @@ export function Header({
           {/* Right Action buttons: Currency & PDF */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Currency selector */}
-            <div className="flex items-center bg-white rounded-xl p-1 border border-stone-200/80 shadow-xs text-xs font-bold text-stone-600">
+            <div className="flex items-center bg-white rounded-xl p-1 border border-stone-200/80 shadow-xs text-xs font-bold text-stone-600 font-khmer">
               <button
                 onClick={() => onCurrencyChange("both")}
                 className={`px-2.5 py-1 rounded-lg transition-all ${
@@ -62,7 +58,7 @@ export function Header({
                     : "hover:text-stone-900"
                 }`}
               >
-                Both (៛/$)
+                ទាំងពីរ (៛/$)
               </button>
               <button
                 onClick={() => onCurrencyChange("khr")}
@@ -72,7 +68,7 @@ export function Header({
                     : "hover:text-stone-900"
                 }`}
               >
-                KHR (៛)
+                រៀល (៛)
               </button>
               <button
                 onClick={() => onCurrencyChange("usd")}
@@ -82,17 +78,17 @@ export function Header({
                     : "hover:text-stone-900"
                 }`}
               >
-                USD ($)
+                ដុល្លារ ($)
               </button>
             </div>
 
             {/* View Original PDF */}
             <button
               onClick={onOpenPdf}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-stone-700 hover:text-[#8E583C] hover:bg-stone-50 border border-stone-200/80 shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-stone-700 hover:text-[#8E583C] hover:bg-stone-50 border border-stone-200/80 shadow-xs transition-colors font-khmer"
             >
               <FileText className="w-3.5 h-3.5 text-[#8E583C]" />
-              <span>Original PDF</span>
+              <span>ម៉ឺនុយ PDF</span>
             </button>
           </div>
         </div>
@@ -105,8 +101,8 @@ export function Header({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="ស្វែងរកភេសជ្ជៈ / Search coffee, matcha, tea, frappe..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white border border-stone-200 text-sm placeholder:text-stone-400 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C] shadow-xs transition-all"
+              placeholder="ស្វែងរកភេសជ្ជៈ..."
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white border border-stone-200 text-sm placeholder:text-stone-400 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C] shadow-xs transition-all font-khmer"
             />
             {searchQuery && (
               <button

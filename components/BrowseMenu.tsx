@@ -370,22 +370,19 @@ export function BrowseMenu() {
       {/* Footer */}
       <footer className="bg-[#2A1B14] px-5 py-10 text-[#F4EDE3]">
         <div className="mx-auto max-w-3xl">
-          <p className="font-display text-3xl font-semibold leading-tight">
-            Ready to order?
+          <p className="font-khmer text-2xl font-bold leading-tight">
+            ចង់កុម្ម៉ង់មែនទេ?
           </p>
-          <p className="mt-2 text-sm text-[#F4EDE3]/70">
-            Tell our barista the drink name and size at the counter.
-            <span className="font-khmer mt-1 block">
-              ប្រាប់ឈ្មោះភេសជ្ជៈ និងទំហំ នៅបញ្ជរ
-            </span>
+          <p className="mt-2 text-sm text-[#F4EDE3]/70 font-khmer">
+            សូមប្រាប់ឈ្មោះភេសជ្ជៈ និងទំហំដល់បារីស្តានៅបញ្ជរ
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-6 flex flex-wrap gap-2 font-khmer">
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 rounded-full bg-[#F4EDE3] px-4 py-2 text-xs font-bold text-[#2A1B14]"
             >
-              Order online for pickup
+              កុម្ម៉ង់អនឡាញ
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
             <a
@@ -395,7 +392,7 @@ export function BrowseMenu() {
               className="inline-flex items-center gap-1.5 rounded-full border border-[#F4EDE3]/25 px-4 py-2 text-xs font-bold text-[#F4EDE3]/85"
             >
               <FileText className="h-3.5 w-3.5" />
-              PDF menu
+              ម៉ឺនុយ PDF
             </a>
           </div>
 
@@ -529,9 +526,8 @@ function DrinkSheet({
             ))}
           </div>
 
-          <p className="mt-5 rounded-2xl bg-[#2A1B14] px-4 py-3 text-center text-xs font-semibold text-[#F4EDE3]/85">
-            Order this at the counter ·{" "}
-            <span className="font-khmer">កម្ម៉ង់នៅបញ្ជរ</span>
+          <p className="mt-5 rounded-2xl bg-[#2A1B14] px-4 py-3 text-center text-xs font-semibold text-[#F4EDE3]/85 font-khmer">
+            សូមកុម្ម៉ង់ភេសជ្ជៈនេះនៅបញ្ជរ
           </p>
         </div>
       </div>

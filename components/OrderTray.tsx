@@ -55,16 +55,16 @@ export function OrderTray({
   if (totalCount === 0) return null;
 
   const handleShareToTelegram = () => {
-    let text = "☕ *SIGNAL CAFE ORDER* ☕\n---------------------------\n";
+    let text = "☕ *SIGNAL CAFE* ☕\n---------------------------\n";
     tray.forEach((entry, idx) => {
       const sizeLabel = entry.item.prices.large
-        ? ` (${entry.size === "regular" ? "Regular" : "Large"})`
+        ? ` (${entry.size === "regular" ? "ធម្មតា" : "ធំ"})`
         : "";
       text += `${idx + 1}. ${entry.item.nameKh} / ${entry.item.nameEn}${sizeLabel}\n`;
-      text += `   Qty: ${entry.quantity}x • ${(entry.price.riel * entry.quantity).toLocaleString()}៛ ($${(entry.price.usd * entry.quantity).toFixed(2)})\n`;
+      text += `   ចំនួន: ${entry.quantity}x • ${(entry.price.riel * entry.quantity).toLocaleString()}៛ ($${(entry.price.usd * entry.quantity).toFixed(2)})\n`;
     });
     text += "---------------------------\n";
-    text += `💰 Total: ${totalRiel.toLocaleString()}៛ ($${totalUsd.toFixed(2)})\n`;
+    text += `💰 សរុប: ${totalRiel.toLocaleString()}៛ ($${totalUsd.toFixed(2)})\n`;
     text += "📍 SIGNAL Cafe";
 
     navigator.clipboard.writeText(text);
@@ -91,12 +91,12 @@ export function OrderTray({
                 {totalCount}
               </span>
             </div>
-            <div className="text-left">
+            <div className="text-left font-khmer">
               <div className="text-xs uppercase tracking-wider text-amber-200 font-semibold">
-                Table Order Tray
+                ថាសភេសជ្ជៈ
               </div>
               <div className="font-bold text-base leading-tight">
-                {totalCount} {totalCount === 1 ? "drink" : "drinks"} selected
+                បានរើស {totalCount} កែវ
               </div>
             </div>
           </div>
@@ -140,11 +140,11 @@ export function OrderTray({
                   <ShoppingCart className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-stone-900 text-base leading-tight">
-                    Order Summary
+                  <h3 className="font-bold text-stone-900 text-base leading-tight font-khmer">
+                    ភេសជ្ជៈដែលបានរើស
                   </h3>
                   <p className="text-xs text-stone-500 font-khmer">
-                    បញ្ជីភេសជ្ជៈដែលបានជ្រើសរើស ({totalCount})
+                    សរុប {totalCount} កែវ
                   </p>
                 </div>
               </div>
@@ -189,8 +189,8 @@ export function OrderTray({
                     <div className="text-xs text-stone-500 flex items-center gap-1.5 truncate">
                       <span>{entry.item.nameEn}</span>
                       {entry.item.prices.large && (
-                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800">
-                          {entry.size === "regular" ? "Regular" : "Large"}
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold font-khmer bg-amber-100 text-amber-800">
+                          {entry.size === "regular" ? "ធម្មតា" : "ធំ"}
                         </span>
                       )}
                     </div>
@@ -235,10 +235,10 @@ export function OrderTray({
             </div>
 
             {/* Footer Summary */}
-            <div className="p-4 bg-[#FAF7F2] border-t border-stone-200 space-y-3">
+            <div className="p-4 bg-[#FAF7F2] border-t border-stone-200 space-y-3 font-khmer">
               <div className="flex items-center justify-between">
                 <span className="text-stone-500 font-medium text-sm">
-                  Estimated Total:
+                  តម្លៃសរុប៖
                 </span>
                 <div className="text-right">
                   {/* Primary Total in KHR */}
@@ -261,7 +261,7 @@ export function OrderTray({
                   }}
                   className="w-full py-3 px-4 rounded-2xl bg-[#8E583C] text-white font-extrabold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/25 flex items-center justify-center gap-2"
                 >
-                  <span>Place Order &amp; Pay (កុម្ម៉ង់ និងទូទាត់)</span>
+                  <span>កុម្ម៉ង់ និងទូទាត់</span>
                 </button>
               )}
 
@@ -274,12 +274,12 @@ export function OrderTray({
                   {copied ? (
                     <>
                       <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-emerald-700">Copied!</span>
+                      <span className="text-emerald-700">បានចម្លង!</span>
                     </>
                   ) : (
                     <>
                       <Share2 className="w-3.5 h-3.5" />
-                      <span>Copy Text</span>
+                      <span>ចម្លងបញ្ជី</span>
                     </>
                   )}
                 </button>
@@ -288,12 +288,12 @@ export function OrderTray({
                   onClick={() => setIsOpen(false)}
                   className="py-2 px-3 rounded-xl bg-stone-100 text-stone-700 font-semibold text-xs hover:bg-stone-200 transition-colors"
                 >
-                  Add More Drinks
+                  ថែមភេសជ្ជៈ
                 </button>
               </div>
 
-              <p className="text-[11px] text-center text-stone-400 font-khmer">
-                បង្ហាញបញ្ជីនេះទៅកាន់អ្នកគិតលុយ ឬ Barista ដើម្បីកុម្ម៉ង់
+              <p className="text-[11px] text-center text-stone-400">
+                បង្ហាញបញ្ជីនេះទៅកាន់បារីស្តាដើម្បីកុម្ម៉ង់
               </p>
             </div>
           </div>

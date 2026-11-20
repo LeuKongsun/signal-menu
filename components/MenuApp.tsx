@@ -86,13 +86,13 @@ export function MenuApp() {
     if (!isCheckoutModalOpen && trayCount > 0) {
       const total = `${trayRiel.toLocaleString("en-US")}៛`;
       if (isTrayOpen) {
-        text = `PLACE ORDER · ${total}`;
+        text = `កុម្ម៉ង់ឥឡូវ • ${total}`;
         action = () => {
           setIsTrayOpen(false);
           setIsCheckoutModalOpen(true);
         };
       } else {
-        text = `VIEW ORDER · ${trayCount} · ${total}`;
+        text = `មើលការកុម្ម៉ង់ • ${trayCount} • ${total}`;
         action = () => setIsTrayOpen(true);
       }
     }
@@ -247,16 +247,15 @@ export function MenuApp() {
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
         {filteredItems.length === 0 ? (
           // Empty Search State
-          <div className="py-16 text-center max-w-md mx-auto">
+          <div className="py-16 text-center max-w-md mx-auto font-khmer">
             <div className="w-14 h-14 rounded-2xl bg-amber-100 text-[#8E583C] flex items-center justify-center mx-auto mb-4">
               <SearchX className="w-7 h-7" />
             </div>
             <h3 className="font-bold text-stone-800 text-lg mb-1">
-              No drinks found
+              រកមិនឃើញភេសជ្ជៈទេ
             </h3>
             <p className="text-sm text-stone-500 mb-4">
-              We couldn&apos;t find any item matching &ldquo;{searchQuery}&rdquo;.
-              Try searching for &ldquo;coffee&rdquo;, &ldquo;matcha&rdquo;, or &ldquo;tea&rdquo;.
+              គ្មានភេសជ្ជៈណាត្រូវនឹង «{searchQuery}» ឡើយ។
             </p>
             <button
               onClick={() => {
@@ -265,7 +264,7 @@ export function MenuApp() {
               }}
               className="px-4 py-2 rounded-xl bg-[#8E583C] text-white font-bold text-xs hover:bg-[#73432B] transition-colors"
             >
-              Reset Search & Filters
+              បង្ហាញទាំងអស់
             </button>
           </div>
         ) : selectedCategory === "all" && !searchQuery ? (
@@ -295,28 +294,23 @@ export function MenuApp() {
         ) : (
           // Flat Grid View for specific category or search
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 font-khmer">
               <h2 className="font-bold text-stone-900 text-lg">
                 {searchQuery ? (
                   <span>
-                    Search Results for &ldquo;{searchQuery}&rdquo;
+                    លទ្ធផលស្វែងរក «{searchQuery}»
                   </span>
                 ) : (
-                  <span className="font-khmer">
+                  <span>
                     {
                       MENU_CATEGORIES.find((c) => c.key === selectedCategory)
                         ?.nameKh
-                    }{" "}
-                    |{" "}
-                    {
-                      MENU_CATEGORIES.find((c) => c.key === selectedCategory)
-                        ?.nameEn
                     }
                   </span>
                 )}
               </h2>
               <span className="text-xs font-bold text-stone-500">
-                {filteredItems.length} {filteredItems.length === 1 ? "drink" : "drinks"}
+                {filteredItems.length} កែវ
               </span>
             </div>
 
@@ -372,18 +366,18 @@ export function MenuApp() {
             </div>
           </div>
 
-          <div className="text-xs text-stone-400">
-            <span>Prices displayed in Cambodian Riel (៛) and US Dollars ($).</span>
-            <div className="mt-1 font-khmer">
+          <div className="text-xs text-stone-400 font-khmer">
+            <span>តម្លៃគិតជាប្រាក់រៀល (៛) និងដុល្លារ ($)</span>
+            <div className="mt-1">
               សូមអរគុណសម្រាប់ការគាំទ្រហាង SIGNAL
             </div>
           </div>
 
           <button
             onClick={() => setIsPdfModalOpen(true)}
-            className="text-xs font-semibold text-amber-200 hover:text-white underline underline-offset-4"
+            className="text-xs font-semibold text-amber-200 hover:text-white underline underline-offset-4 font-khmer"
           >
-            View Original PDF Menu
+            មើលម៉ឺនុយ PDF
           </button>
         </div>
       </footer>

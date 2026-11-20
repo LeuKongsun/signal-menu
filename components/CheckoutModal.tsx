@@ -57,7 +57,7 @@ export function CheckoutModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim()) {
-      setErrorMsg("សូមបញ្ចូលឈ្មោះរបស់អ្នក / Please enter your name");
+      setErrorMsg("សូមបញ្ចូលឈ្មោះរបស់អ្នក");
       return;
     }
 
@@ -99,7 +99,7 @@ export function CheckoutModal({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to submit order");
+        throw new Error(data.error || "មិនអាចផ្ញើការកុម្ម៉ង់បានទេ សូមព្យាយាមម្ដងទៀត");
       }
 
       setCompletedOrder({
@@ -113,7 +113,7 @@ export function CheckoutModal({
       }
       onOrderSuccess();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to submit order. Please try again.";
+      const msg = err instanceof Error ? err.message : "មិនអាចផ្ញើការកុម្ម៉ង់បានទេ សូមព្យាយាមម្ដងទៀត";
       setErrorMsg(msg);
       if (telegram?.isVersionAtLeast("6.1")) {
         telegram.HapticFeedback.notificationOccurred("error");
@@ -141,12 +141,12 @@ export function CheckoutModal({
               <QrCode className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-stone-900 text-base leading-tight">
-                {completedOrder ? "Order Confirmed" : "Confirm Order"}
+              <h3 className="font-bold text-stone-900 text-base leading-tight font-khmer">
+                {completedOrder ? "កុម្ម៉ង់ជោគជ័យ" : "ផ្ទៀងផ្ទាត់ការកុម្ម៉ង់"}
               </h3>
               <p className="text-xs text-stone-500 font-khmer">
                 {completedOrder
-                  ? "ការបញ្ជាទិញបានជោគជ័យ"
+                  ? "ការកុម្ម៉ង់បានជោគជ័យ"
                   : `សរុប ${totalCount} កែវ • ${totalRiel.toLocaleString()}៛`}
               </p>
             </div>
@@ -171,64 +171,55 @@ export function CheckoutModal({
 
               <div>
                 <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-stone-100 text-[#8E583C] tracking-widest uppercase mb-1">
-                  Order #{completedOrder.orderNumber}
+                  #{completedOrder.orderNumber}
                 </span>
                 <h3 className="text-xl font-black text-stone-900 font-khmer">
-                  ការបញ្ជាទិញទទួលបានជោគជ័យ!
+                  កុម្ម៉ង់ជោគជ័យ!
                 </h3>
-                <p className="text-sm text-stone-600 mt-1">
-                  Thank you, <strong>{customerName}</strong>! Your order has
-                  been sent to our barista.
+                <p className="text-sm text-stone-600 mt-1 font-khmer">
+                  អរគុណ <strong>{customerName}</strong>! បារីស្តាកំពុងរៀបចំភេសជ្ជៈជូន។
                 </p>
               </div>
 
               <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-stone-200 text-left text-xs space-y-1.5">
                 <div className="flex justify-between font-bold text-stone-900">
-                  <span>Customer:</span>
+                  <span className="font-khmer">អតិថិជន៖</span>
                   <span>{customerName}</span>
                 </div>
-                <div className="flex justify-between text-stone-600">
-                  <span>Drinks count:</span>
-                  <span>{totalCount} items</span>
+                <div className="flex justify-between text-stone-600 font-khmer">
+                  <span>ចំនួន៖</span>
+                  <span>{totalCount} កែវ</span>
                 </div>
-                <div className="flex justify-between text-stone-600">
-                  <span>Total Amount:</span>
+                <div className="flex justify-between text-stone-600 font-khmer">
+                  <span>សរុប៖</span>
                   <span className="font-bold text-[#8E583C]">
                     {totalRiel.toLocaleString()} ៛ (${totalUsd.toFixed(2)})
                   </span>
                 </div>
-                <div className="flex justify-between text-stone-600">
-                  <span>Payment:</span>
+                <div className="flex justify-between text-stone-600 font-khmer">
+                  <span>ការទូទាត់៖</span>
                   <span className="font-semibold">
-                    {paymentMethod === "cash" ? "Cash on Pickup" : "ABA KHQR"}
+                    {paymentMethod === "cash" ? "ទូទាត់ផ្ទាល់ (សាច់ប្រាក់)" : "ABA KHQR"}
                   </span>
                 </div>
               </div>
 
               {completedOrder.isMock && (
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] text-left">
-                  ℹ️ <strong>Test Mode Note:</strong> {completedOrder.message}
+                  ℹ️ {completedOrder.message}
                 </div>
               )}
 
               {completedOrder.viaTelegram && paymentMethod === "aba" ? (
-                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-left text-xs text-amber-900">
-                  <p className="font-bold text-sm">💳 Next: pay in the chat</p>
-                  <p className="mt-0.5">
-                    We sent the ABA QR to the SIGNAL bot chat. Pay there, then tap{" "}
-                    <strong>✅ I&apos;ve paid</strong>. Your receipt and order updates are in the chat too.
-                  </p>
-                  <p className="font-khmer mt-1 text-amber-800">
-                    សូមត្រឡប់ទៅឆាត ដើម្បីបង់ប្រាក់តាម ABA
+                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-left text-xs text-amber-900 space-y-1">
+                  <p className="font-bold text-sm font-khmer">💳 បង់ប្រាក់ក្នុងឆាត</p>
+                  <p className="font-khmer text-amber-800">
+                    សូមត្រឡប់ទៅឆាត Telegram ដើម្បីស្កេន QR និងចុច <strong>«✅ បានបង់ប្រាក់»</strong>។
                   </p>
                 </div>
               ) : completedOrder.viaTelegram ? (
-                <p className="text-xs text-stone-600">
-                  📩 We sent your receipt to the SIGNAL bot chat and will message
-                  you there when your drinks are ready.
-                  <span className="font-khmer block mt-0.5 text-stone-500">
-                    យើងនឹងផ្ញើសារជូនអ្នកនៅពេលភេសជ្ជៈរួចរាល់
-                  </span>
+                <p className="text-xs text-stone-600 font-khmer">
+                  📩 យើងបានផ្ញើវិក្កយបត្រក្នុងឆាត Telegram ហើយនឹងជូនដំណឹងពេលភេសជ្ជៈរួចរាល់។
                 </p>
               ) : (
                 <p className="text-xs text-stone-500 font-khmer">
@@ -236,28 +227,28 @@ export function CheckoutModal({
                 </p>
               )}
 
-              {/* In Telegram the next steps (payment, tracking) are in the bot chat, so that's the only way forward */}
+              {/* Actions */}
               {telegram ? (
                 <button
                   onClick={() => telegram.close()}
-                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-[#8E583C] text-white font-bold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/20"
+                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-[#8E583C] text-white font-bold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/20 font-khmer"
                 >
-                  {paymentMethod === "aba" ? "Back to chat to pay" : "Back to chat"}
+                  {paymentMethod === "aba" ? "ត្រឡប់ទៅឆាតដើម្បីបង់" : "ត្រឡប់ទៅឆាត"}
                 </button>
               ) : (
                 <>
                   <a
                     href={`/order/${completedOrder.orderNumber}`}
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 font-khmer"
                   >
-                    📍 Track Order Status
+                    📍 តាមដានការកុម្ម៉ង់
                   </a>
 
                   <button
                     onClick={handleResetAndClose}
-                    className="w-full py-3 rounded-2xl bg-stone-100 text-stone-600 font-bold text-sm hover:bg-stone-200 transition-all"
+                    className="w-full py-3 rounded-2xl bg-stone-100 text-stone-600 font-bold text-sm hover:bg-stone-200 transition-all font-khmer"
                   >
-                    Done / New Order
+                    កុម្ម៉ង់ថ្មី
                   </button>
                 </>
               )}
@@ -266,7 +257,7 @@ export function CheckoutModal({
             // Checkout Form
             <form onSubmit={handleSubmit} className="space-y-5">
               {errorMsg && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 font-khmer">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{errorMsg}</span>
                 </div>
@@ -274,51 +265,51 @@ export function CheckoutModal({
 
               {/* Step 1: Customer Details */}
               <div className="space-y-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-stone-400">
-                  1. Customer Details (ព័ត៌មានអតិថិជន)
+                <div className="text-xs font-bold uppercase tracking-wider text-stone-400 font-khmer">
+                  ១. ព័ត៌មានអតិថិជន
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1 font-khmer">
-                    ឈ្មោះរបស់អ្នក / Your Name <span className="text-rose-500">*</span>
+                    ឈ្មោះរបស់អ្នក <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="e.g. Dara / Sokha"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C]"
+                    placeholder="ឧ. តារា, សុខា..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C] font-khmer"
                   />
-                  <p className="text-[10px] text-stone-400 mt-0.5">
-                    Barista will call this name when your drinks are ready.
+                  <p className="text-[10px] text-stone-400 mt-1 font-khmer">
+                    បារីស្តានឹងហៅឈ្មោះនេះពេលភេសជ្ជៈរួចរាល់
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">
-                      Phone Number (Optional)
+                    <label className="block text-xs font-bold text-stone-700 mb-1 font-khmer">
+                      លេខទូរស័ព្ទ (បើមាន)
                     </label>
                     <input
                       type="tel"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="e.g. 012 345 678"
+                      placeholder="ឧ. 012 345 678"
                       className="w-full px-3.5 py-2 rounded-xl border border-stone-200 bg-stone-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">
-                      Notes / Request (Optional)
+                    <label className="block text-xs font-bold text-stone-700 mb-1 font-khmer">
+                      ចំណាំបន្ថែម (បើមាន)
                     </label>
                     <input
                       type="text"
                       value={customerNotes}
                       onChange={(e) => setCustomerNotes(e.target.value)}
-                      placeholder="e.g. 50% sugar, extra ice"
-                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 bg-stone-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C]"
+                      placeholder="ឧ. ផ្អែមតិច, ទឹកកកច្រើន..."
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 bg-stone-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C] font-khmer"
                     />
                   </div>
                 </div>
@@ -326,8 +317,8 @@ export function CheckoutModal({
 
               {/* Step 2: Payment Method */}
               <div className="space-y-3 pt-2 border-t border-stone-100">
-                <div className="text-xs font-bold uppercase tracking-wider text-stone-400">
-                  2. Payment Method (វិធីសាស្ត្រទូទាត់)
+                <div className="text-xs font-bold uppercase tracking-wider text-stone-400 font-khmer">
+                  ២. វិធីទូទាត់
                 </div>
 
                 {abaAvailable && (
@@ -354,7 +345,7 @@ export function CheckoutModal({
                         <div className="font-bold text-xs text-stone-900 leading-tight">
                           ABA KHQR
                         </div>
-                        <div className="text-[10px] text-stone-500">QR sent in chat</div>
+                        <div className="text-[10px] text-stone-500 font-khmer">ស្កេនក្នុងឆាត</div>
                       </div>
                     </button>
 
@@ -377,10 +368,10 @@ export function CheckoutModal({
                         <Banknote className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="font-bold text-xs text-stone-900 leading-tight">
-                          Cash on Pickup
+                        <div className="font-bold text-xs text-stone-900 leading-tight font-khmer">
+                          ទូទាត់ផ្ទាល់
                         </div>
-                        <div className="text-[10px] text-stone-500">Pay at counter</div>
+                        <div className="text-[10px] text-stone-500 font-khmer">បង់នៅបញ្ជរ</div>
                       </div>
                     </button>
                   </div>
@@ -388,31 +379,24 @@ export function CheckoutModal({
               </div>
 
               {paymentMethod === "aba" ? (
-                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-stone-200 text-xs text-stone-700 space-y-1">
+                <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-stone-200 text-xs text-stone-700 space-y-1 font-khmer">
                   <div className="font-bold text-sm text-stone-900 flex items-center gap-1.5">
-                    <QrCode className="w-4 h-4" />
-                    <span>Pay with ABA in the chat</span>
+                    <QrCode className="w-4 h-4 text-[#8E583C]" />
+                    <span>បង់ប្រាក់តាម ABA ក្នុងឆាត</span>
                   </div>
-                  <p>
-                    After you place the order, the SIGNAL bot sends you the ABA QR for{" "}
-                    <strong>{totalRiel.toLocaleString()} ៛</strong>. Pay there, then tap{" "}
-                    <strong>✅ I&apos;ve paid</strong>.
-                  </p>
-                  <p className="font-khmer text-stone-500">
-                    បន្ទាប់ពីកម្ម៉ង់ យើងនឹងផ្ញើ QR ABA ទៅក្នុងឆាត
+                  <p className="text-stone-600">
+                    ក្រោយពេលកុម្ម៉ង់ យើងនឹងផ្ញើ QR ABA ចំនួន <strong>{totalRiel.toLocaleString()} ៛</strong> ទៅក្នុងឆាត។ ពេលបង់រួច សូមចុច <strong>«✅ បានបង់ប្រាក់»</strong>។
                   </p>
                 </div>
               ) : (
                 // Cash Note
-                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 space-y-1">
+                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 space-y-1 font-khmer">
                   <div className="font-bold text-sm flex items-center gap-1.5">
-                    <Banknote className="w-4 h-4" />
-                    <span>Pay Cash at Counter</span>
+                    <Banknote className="w-4 h-4 text-[#8E583C]" />
+                    <span>ទូទាត់ផ្ទាល់នៅបញ្ជរ</span>
                   </div>
                   <p>
-                    Please pay <strong>{totalRiel.toLocaleString()} ៛</strong> ($
-                    {totalUsd.toFixed(2)}) directly to the barista when picking
-                    up your order.
+                    សូមទូទាត់ប្រាក់ចំនួន <strong>{totalRiel.toLocaleString()} ៛</strong> (${totalUsd.toFixed(2)}) ជូនបារីស្តាពេលមកទទួលភេសជ្ជៈ។
                   </p>
                 </div>
               )}
@@ -422,15 +406,15 @@ export function CheckoutModal({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-[#8E583C] hover:bg-[#73432B] disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#8E583C]/25 transition-all active:scale-[0.98]"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-[#8E583C] hover:bg-[#73432B] disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#8E583C]/25 transition-all active:scale-[0.98] font-khmer"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Sending Order to Telegram...</span>
+                      <span>កំពុងផ្ញើ...</span>
                     </>
                   ) : (
-                    <span>{`Place Order • ${totalRiel.toLocaleString()}៛`}</span>
+                    <span>{`កុម្ម៉ង់ឥឡូវនេះ • ${totalRiel.toLocaleString()}៛`}</span>
                   )}
                 </button>
               </div>

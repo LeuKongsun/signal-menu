@@ -106,9 +106,9 @@ export function MenuItemCard({
           <button
             type="button"
             onClick={() => onAddToCart(item, size, price)}
-            className="w-full h-full rounded-lg bg-[#E8A33D] hover:bg-[#D9922B] text-white text-xs font-extrabold uppercase tracking-wide transition-colors active:scale-95"
+            className="w-full h-full rounded-lg bg-[#E8A33D] hover:bg-[#D9922B] text-white text-xs font-extrabold tracking-wide transition-colors active:scale-95 font-khmer"
           >
-            Add
+            ថែម
           </button>
         ) : (
           <div className="grid grid-cols-2 gap-1.5 h-full">

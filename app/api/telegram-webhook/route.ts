@@ -48,22 +48,22 @@ async function handleAbaPaid(
 ) {
   const record = await getOrder(orderNumber);
   if (!record || record.customerTelegram?.id !== callbackQuery.from.id) {
-    await answerCallbackQuery(botToken, callbackQuery.id, "Sorry, we couldn't find this order.");
+    await answerCallbackQuery(botToken, callbackQuery.id, "រកមិនឃើញការកុម្ម៉ង់នេះទេ។");
     return;
   }
   if (record.status === "cancelled" || record.status === "ready") {
-    await answerCallbackQuery(botToken, callbackQuery.id, `Order #${orderNumber} is already ${record.status === "ready" ? "completed" : "cancelled"}.`);
+    await answerCallbackQuery(botToken, callbackQuery.id, `ការកុម្ម៉ង់ #${orderNumber} ត្រូវបានបិទរួចហើយ។`);
     return;
   }
   if (record.abaPayment === "reported") {
-    await answerCallbackQuery(botToken, callbackQuery.id, "Already marked as paid. Thank you!");
+    await answerCallbackQuery(botToken, callbackQuery.id, "បានកត់ត្រាការបង់ប្រាក់រួចហើយ!");
     return;
   }
 
   record.abaPayment = "reported";
   record.updatedAt = new Date().toISOString();
   await saveOrder(record);
-  await answerCallbackQuery(botToken, callbackQuery.id, "Thank you! The barista will check your payment.");
+  await answerCallbackQuery(botToken, callbackQuery.id, "សូមអរគុណ! បារីស្តានឹងពិនិត្យការទូទាត់ជូន។");
 
   const customerChatId = record.customerTelegram.id;
   const message = callbackQuery.message;
@@ -155,12 +155,11 @@ export async function POST(req: NextRequest) {
           botToken,
           incoming.chat.id,
           [
-            `☕ <b>Welcome to SIGNAL Cafe!</b>`,
-            `សូមស្វាគមន៍មកកាន់ SIGNAL Cafe`,
+            `☕ <b>សូមស្វាគមន៍មកកាន់ SIGNAL Cafe!</b>`,
             ``,
-            `Tap the button below to browse the menu and order. We'll message you here when your drinks are ready.`,
+            `សូមចុចប៊ូតុងខាងក្រោមដើម្បីកុម្ម៉ង់ភេសជ្ជៈ។ យើងនឹងផ្ញើសារជូនដំណឹងនៅពេលភេសជ្ជៈរួចរាល់។`,
           ].join("\n"),
-          { inline_keyboard: [[{ text: "☕ Order drinks", web_app: { url: appUrl } }]] }
+          { inline_keyboard: [[{ text: "☕ កុម្ម៉ង់ភេសជ្ជៈ", web_app: { url: appUrl } }]] }
         );
       }
       return NextResponse.json({ ok: true });
@@ -200,7 +199,7 @@ export async function POST(req: NextRequest) {
       await answerCallbackQuery(
         botToken,
         callbackId,
-        `Order #${orderNumber} is already ${record.status === "ready" ? "completed" : "cancelled"}.`
+        `ការកុម្ម៉ង់ #${orderNumber} ត្រូវបានបិទរួចហើយ។`
       );
       return NextResponse.json({ ok: true, ignored: "Order already closed" });
     }
@@ -210,14 +209,14 @@ export async function POST(req: NextRequest) {
     const newKeyboard = staffKeyboard(orderNumber, nextStatus);
 
     if (action === "confirm") {
-      newStatusText = `🟡 <b>Status: PREPARING DRINKS (Confirmed by ${escapeHtml(staffName)})</b>`;
-      alertPopup = `Order #${orderNumber} confirmed by ${staffName}! Preparing drinks...`;
+      newStatusText = `🟡 <b>ស្ថានភាព៖ កំពុងធ្វើ (បញ្ជាក់ដោយ ${escapeHtml(staffName)})</b>`;
+      alertPopup = `ការកុម្ម៉ង់ #${orderNumber} បានបញ្ជាក់! កំពុងធ្វើភេសជ្ជៈ...`;
     } else if (action === "pickup") {
-      newStatusText = `🟢 <b>Status: COMPLETED / PICKED UP (by ${escapeHtml(staffName)})</b>`;
-      alertPopup = `Order #${orderNumber} marked as Ready & Picked Up! 🎉`;
+      newStatusText = `🟢 <b>ស្ថានភាព៖ រួចរាល់ / បានទទួល (ដោយ ${escapeHtml(staffName)})</b>`;
+      alertPopup = `ការកុម្ម៉ង់ #${orderNumber} រួចរាល់! 🎉`;
     } else {
-      newStatusText = `❌ <b>Status: CANCELLED (by ${escapeHtml(staffName)})</b>`;
-      alertPopup = `Order #${orderNumber} was cancelled.`;
+      newStatusText = `❌ <b>ស្ថានភាព៖ បានលុបចោល (ដោយ ${escapeHtml(staffName)})</b>`;
+      alertPopup = `ការកុម្ម៉ង់ #${orderNumber} ត្រូវបានលុបចោល។`;
     }
 
     if (record) {
@@ -238,7 +237,7 @@ export async function POST(req: NextRequest) {
       updatedText = staffOrderText(record, newStatusText);
     } else {
       const originalText = escapeHtml(isPhoto ? message.caption || "" : message.text || "");
-      const statusLine = /^.*Status:.*$/m;
+      const statusLine = /^.*(?:Status:|ស្ថានភាព៖).*$/m;
       updatedText = statusLine.test(originalText)
         ? originalText.replace(statusLine, newStatusText)
         : `${newStatusText}\n\n${originalText}`;

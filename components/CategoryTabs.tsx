@@ -52,10 +52,7 @@ export function CategoryTabs({
           }`}
         >
           {getIcon("all")}
-          <div className="flex items-center gap-1.5">
-            <span>ទាំងអស់</span>
-            <span className="text-[10px] opacity-80">(All)</span>
-          </div>
+          <span className="font-khmer">ទាំងអស់</span>
           <span
             className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
               selectedCategory === "all"
