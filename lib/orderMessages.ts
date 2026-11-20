@@ -1,6 +1,6 @@
 import type { OrderRecord, OrderStatus } from "@/lib/orderStore";
 import { escapeHtml, type InlineKeyboard } from "@/lib/telegram";
-import { ABA_ACCOUNT_NAME, ABA_ACCOUNT_NUMBER, ABA_PAY_LINK } from "@/lib/aba";
+import { ABA_ACCOUNT_NAME, ABA_PAY_LINK } from "@/lib/aba";
 
 export const PENDING_STATUS_LINE = `🔴 <b>ស្ថានភាព៖ រង់ចាំពិនិត្យ</b>`;
 
@@ -171,7 +171,7 @@ export function abaPaymentText(order: OrderRecord) {
     return [
       `✅ <b>បានកត់ត្រាការបង់ប្រាក់ · #${n}</b>`,
       amountLine(order),
-      `ABA: ${escapeHtml(ABA_ACCOUNT_NUMBER)} (${escapeHtml(ABA_ACCOUNT_NAME)}) · ចំណាំ <code>${n}</code>`,
+      `ABA: ${escapeHtml(ABA_ACCOUNT_NAME)} · ចំណាំ <code>${n}</code>`,
       ``,
       `សូមអរគុណ! បារីស្តានឹងពិនិត្យការទូទាត់ជូន។`,
       ...(order.status === "ready"
@@ -185,7 +185,7 @@ export function abaPaymentText(order: OrderRecord) {
   return [
     `💳 <b>ទូទាត់ប្រាក់ #${n}</b>`,
     amountLine(order),
-    `ABA: ${escapeHtml(ABA_ACCOUNT_NUMBER)} (${escapeHtml(ABA_ACCOUNT_NAME)})`,
+    `ABA: ${escapeHtml(ABA_ACCOUNT_NAME)}`,
     ``,
     `១. ស្កេន QR ឬចុច <b>«បើក ABA ដើម្បីបង់»</b>`,
     `២. ដាក់ចំណាំលេខ <code>${n}</code>`,
