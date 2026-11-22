@@ -52,8 +52,11 @@ declare global {
 const SCRIPT_SRC = "https://telegram.org/js/telegram-web-app.js";
 
 function launchedFromTelegram() {
+  if (typeof window === "undefined") return false;
   return (
+    Boolean(window.Telegram?.WebApp) ||
     window.location.hash.includes("tgWebApp") ||
+    window.location.search.includes("tgWebApp") ||
     window.sessionStorage.getItem("__telegram__initParams") !== null
   );
 }
