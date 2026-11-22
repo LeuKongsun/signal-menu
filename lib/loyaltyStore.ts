@@ -20,6 +20,8 @@ export interface LoyaltyCard {
   freeDrinksRedeemed: number;
   /** Telegram message ID of the card message in the customer's private chat (edit in-place). */
   cardMessageId?: number;
+  /** Timestamp in ms when the last stamp was awarded (for deduplication / cooldown). */
+  lastStampedAt?: number;
   /** Unique token for the barista QR code. */
   qrToken: string;
   createdAt: string;
@@ -77,42 +79,6 @@ export async function saveLoyaltyCard(card: LoyaltyCard): Promise<void> {
     kvSet(cardKey(card.telegramId), card),
     kvSet(qrKey(card.qrToken), card.telegramId),
   ]);
-}
-
-/**
- * Add one stamp to the card.
- * When stamps reach STAMPS_FOR_FREE the card's `stamps` resets to 0 and
- * `freeDrinksClaimed` increments so the barista can give a free drink.
- * Returns { card, earnedFree } where earnedFree = true when a free drink was just unlocked.
- */
-export async function addStamp(
-  telegramId: number,
-  telegramName: string
-): Promise<{ card: LoyaltyCard; earnedFree: boolean }> {
-  const card = await ensureLoyaltyCard(telegramId, telegramName);
-  card.stamps += 1;
-  card.totalEarned += 1;
-  let earnedFree = false;
-  if (card.stamps >= STAMPS_FOR_FREE) {
-    card.stamps = 0;
-    card.freeDrinksClaimed += 1;
-    earnedFree = true;
-  }
-  await saveLoyaltyCard(card);
-  return { card, earnedFree };
-}
-
-/**
- * Redeem a free drink.  Returns the updated card or null if no free drinks are pending.
- */
-export async function redeemFreeDrink(telegramId: number): Promise<LoyaltyCard | null> {
-  const card = await getLoyaltyCard(telegramId);
-  if (!card) return null;
-  const pending = pendingFreeCount(card);
-  if (pending <= 0) return null;
-  card.freeDrinksRedeemed = (card.freeDrinksRedeemed ?? 0) + 1;
-  await saveLoyaltyCard(card);
-  return card;
 }
 
 /** How many free drinks are waiting to be redeemed. */

@@ -38,6 +38,7 @@ function loadSavedTray(): TrayItem[] {
 }
 
 export function MenuApp() {
+  const loyaltyEnabled = process.env.NEXT_PUBLIC_LOYALTY_ENABLED === "true";
   const [selectedCategory, setSelectedCategory] = useState<
     MenuCategoryKey | "all"
   >("all");
@@ -56,11 +57,14 @@ export function MenuApp() {
   useEffect(() => {
     Promise.resolve().then(() => {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("tab") === "loyalty" || window.location.hash.includes("loyalty")) {
+      if (
+        loyaltyEnabled &&
+        (params.get("tab") === "loyalty" || window.location.hash.includes("loyalty"))
+      ) {
         setActiveTab("loyalty");
       }
     });
-  }, []);
+  }, [loyaltyEnabled]);
 
   const [trayLoaded, setTrayLoaded] = useState(false);
 
@@ -415,6 +419,7 @@ export function MenuApp() {
         onTabChange={setActiveTab}
         trayCount={trayCount}
         telegram={tg}
+        loyaltyEnabled={loyaltyEnabled}
       />
     </div>
   );

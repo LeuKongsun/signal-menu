@@ -5,7 +5,6 @@ import {
   editOrderMessage,
   escapeHtml,
   mergeCopies,
-  parseTelegramChatIds,
   sendOrderMessage,
   sendTelegramText,
   type InlineKeyboard,
@@ -16,6 +15,7 @@ import {
   saveOrder,
   type OrderStatus,
 } from "@/lib/orderStore";
+import { kvSet } from "@/lib/kv";
 import {
   abaPaymentKeyboard,
   abaPaymentText,
@@ -28,20 +28,12 @@ import {
 } from "@/lib/orderMessages";
 import { renderStatusCard, type StatusCard } from "@/lib/statusCard";
 import {
-  addStamp,
   ensureLoyaltyCard,
-  getCardByQrToken,
-  getLoyaltyCard,
-  pendingFreeCount,
-  redeemFreeDrink,
   saveLoyaltyCard,
 } from "@/lib/loyaltyStore";
 import {
   loyaltyCardKeyboard,
   loyaltyCardText,
-  staffRedeemKeyboard,
-  staffRedeemText,
-  staffStampDoneText,
 } from "@/lib/loyaltyMessages";
 
 const ACTION_STATUS: Record<string, OrderStatus> = {
@@ -190,7 +182,12 @@ export async function POST(req: NextRequest) {
         if (tgUser) {
           const name = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || "Guest";
           const card = await ensureLoyaltyCard(tgUser.id, name);
-          const sent = await sendTelegramText(botToken, chatId, loyaltyCardText(card), loyaltyCardKeyboard(card));
+          const sent = await sendTelegramText(
+            botToken,
+            chatId,
+            loyaltyCardText(card),
+            loyaltyCardKeyboard(),
+          );
           // Remember the message so we can edit it in-place on future stamps
           if (sent.ok && sent.result) {
             card.cardMessageId = sent.result.message_id;
@@ -208,6 +205,12 @@ export async function POST(req: NextRequest) {
     }
 
     const callbackId = callbackQuery.id as string;
+    // Deduplicate callback queries to prevent Telegram retry loops from executing actions multiple times
+    const isNewQuery = await kvSet(`cbq:${callbackId}`, 1, { ttlSeconds: 60, onlyIfNew: true });
+    if (!isNewQuery) {
+      return NextResponse.json({ ok: true, ignored: "Duplicate callback query" });
+    }
+
     const data = callbackQuery.data as string; // e.g. "confirm:SIG-1048"
     const staffName =
       callbackQuery.from.first_name ||
@@ -222,90 +225,6 @@ export async function POST(req: NextRequest) {
     const colonIdx = data.indexOf(":");
     const action = colonIdx >= 0 ? data.slice(0, colonIdx) : data;
     const payload = colonIdx >= 0 ? data.slice(colonIdx + 1) : "";
-
-    // ── Loyalty callbacks ──────────────────────────────────────────────────────
-    if (action === "loyalty_stamp_ok") {
-      // Barista approved a stamp via QR scan
-      const qrToken = payload;
-      const card = await getCardByQrToken(qrToken);
-      if (!card) {
-        await answerCallbackQuery(botToken, callbackId, "QR token not found");
-        return NextResponse.json({ ok: true });
-      }
-      const { card: updated, earnedFree } = await addStamp(card.telegramId, card.telegramName);
-      await answerCallbackQuery(botToken, callbackId, earnedFree ? "🎁 ត្រា + ភេសជ្ជៈឥតគិតថ្លៃ!" : "✅ បានបោះត្រារួចរាល់!");
-
-      // Edit the approval message in the staff chat to show done state
-      await editOrderMessage(
-        botToken,
-        { chatId: message.chat.id, messageId: message.message_id, isPhoto: false },
-        staffStampDoneText(updated),
-        { inline_keyboard: [] }
-      );
-
-      // Notify the customer
-      await notifyCustomerCardUpdate(botToken, updated);
-      return NextResponse.json({ ok: true });
-    }
-
-    if (action === "loyalty_stamp_no") {
-      await answerCallbackQuery(botToken, callbackId, "❌ បានបដិសេធ");
-      await editOrderMessage(
-        botToken,
-        { chatId: message.chat.id, messageId: message.message_id, isPhoto: false },
-        "❌ បានបដិសេធការបោះត្រា",
-        { inline_keyboard: [] }
-      );
-      return NextResponse.json({ ok: true });
-    }
-
-    if (action === "loyalty_redeem") {
-      // Customer tapped "Redeem Free Drink" on their own card
-      const telegramId = Number(payload);
-      const card = await getLoyaltyCard(telegramId);
-      if (!card || pendingFreeCount(card) === 0) {
-        await answerCallbackQuery(botToken, callbackId, "មិនមានភេសជ្ជៈឥតគិតថ្លៃទេ");
-        return NextResponse.json({ ok: true });
-      }
-      await answerCallbackQuery(botToken, callbackId, "ផ្ញើទៅបារីស្តារួចហើយ!");
-      const chatIds = parseTelegramChatIds(process.env.TELEGRAM_CHAT_ID);
-      await Promise.all(
-        chatIds.map((chatId) =>
-          sendTelegramText(botToken, chatId, staffRedeemText(card), staffRedeemKeyboard(card.telegramId))
-        )
-      );
-      return NextResponse.json({ ok: true });
-    }
-
-    if (action === "loyalty_redeem_ok") {
-      const telegramId = Number(payload);
-      const updated = await redeemFreeDrink(telegramId);
-      if (!updated) {
-        await answerCallbackQuery(botToken, callbackId, "មិនមានភេសជ្ជៈឥតគិតថ្លៃទេ");
-        return NextResponse.json({ ok: true });
-      }
-      await answerCallbackQuery(botToken, callbackId, "✅ បានផ្ដល់ភេសជ្ជៈឥតគិតថ្លៃ!");
-      await editOrderMessage(
-        botToken,
-        { chatId: message.chat.id, messageId: message.message_id, isPhoto: false },
-        `✅ <b>បានផ្ដល់ភេសជ្ជៈឥតគិតថ្លៃ!</b>\n👤 ${escapeHtml(updated.telegramName)}`,
-        { inline_keyboard: [] }
-      );
-      await notifyCustomerCardUpdate(botToken, updated);
-      return NextResponse.json({ ok: true });
-    }
-
-    if (action === "loyalty_redeem_no") {
-      await answerCallbackQuery(botToken, callbackId, "❌ បានបដិសេធ");
-      await editOrderMessage(
-        botToken,
-        { chatId: message.chat.id, messageId: message.message_id, isPhoto: false },
-        "❌ បានបដិសេធ",
-        { inline_keyboard: [] }
-      );
-      return NextResponse.json({ ok: true });
-    }
-    // ──────────────────────────────────────────────────────────────────────────
 
     const orderNumber = payload;
     if (action === "paid" && orderNumber) {
@@ -452,17 +371,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Auto-stamp on pickup for Mini App orders
-    if (action === "pickup" && record?.customerTelegram) {
-      const tg = record.customerTelegram;
-      try {
-        const { card: loyaltyCard } = await addStamp(tg.id, tg.name);
-        await notifyCustomerCardUpdate(botToken, loyaltyCard);
-      } catch (stampErr) {
-        console.warn(`Could not add loyalty stamp for order ${orderNumber}:`, stampErr);
-      }
-    }
-
     return NextResponse.json({ ok: true, status: action, orderNumber });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Webhook error";
@@ -474,46 +382,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Edit the customer's loyalty card message in-place (or send a new one if none saved).
- * Also sends a short silent alert so the customer gets notified (edits are silent).
- */
-async function notifyCustomerCardUpdate(
-  botToken: string,
-  card: import("@/lib/loyaltyStore").LoyaltyCard
-): Promise<void> {
-  const chatId = card.telegramId;
-  const text   = loyaltyCardText(card);
-  const kb     = loyaltyCardKeyboard(card);
-  const pending = pendingFreeCount(card);
-
-  if (card.cardMessageId) {
-    const result = await editOrderMessage(
-      botToken,
-      { chatId, messageId: card.cardMessageId, isPhoto: false },
-      text,
-      kb
-    );
-    if (!result.ok && result.description !== "Bad Request: message is not modified") {
-      // Can't edit (deleted?), forget the ID and re-send below
-      card.cardMessageId = undefined;
-      await saveLoyaltyCard(card);
-    }
-  }
-
-  if (!card.cardMessageId) {
-    // Send the full card for the first time
-    const full = await sendTelegramText(botToken, chatId, text, kb);
-    if (full.ok && full.result) {
-      card.cardMessageId = full.result.message_id;
-      await saveLoyaltyCard(card);
-    }
-    return; // sending the card itself is enough notification
-  }
-
-  // Card was edited in-place (silent) — send a short reply to alert the customer
-  const alert = pending > 0
-    ? `🎁 បានបោះត្រាជូន! អ្នកទទួលបានភេសជ្ជៈឥតគិតថ្លៃ 1 គ្រឿង!`
-    : `☕ បានបោះត្រាជូន! ${card.stamps}/${10} ត្រា`;
-  await sendTelegramText(botToken, chatId, alert, undefined, card.cardMessageId);
-}

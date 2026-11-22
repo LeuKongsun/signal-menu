@@ -2,7 +2,7 @@
  * Telegram message text and keyboards for the loyalty stamp card.
  */
 
-import { escapeHtml, type InlineKeyboard } from "@/lib/telegram";
+import type { InlineKeyboard } from "@/lib/telegram";
 import { STAMPS_FOR_FREE, pendingFreeCount, type LoyaltyCard } from "@/lib/loyaltyStore";
 
 /** Visual stamp row: filled ☕ for earned, empty ⬜ for remaining. */
@@ -46,64 +46,7 @@ export function loyaltyCardText(card: LoyaltyCard): string {
 }
 
 /** Inline keyboard for the customer's loyalty card message. */
-export function loyaltyCardKeyboard(card: LoyaltyCard): InlineKeyboard {
-  const pending = pendingFreeCount(card);
-  const rows: InlineKeyboard["inline_keyboard"] = [];
-  if (pending > 0) {
-    rows.push([{ text: `🎁 ប្រើភេសជ្ជៈឥតគិតថ្លៃ`, callback_data: `loyalty_redeem:${card.telegramId}` }]);
-  }
-  return { inline_keyboard: rows };
+export function loyaltyCardKeyboard(): InlineKeyboard {
+  return { inline_keyboard: [] };
 }
 
-/** Message barista sees when approving a stamp (via QR scan). */
-export function staffStampApprovalText(card: LoyaltyCard): string {
-  return [
-    `🎫 <b>សំណើបោះត្រា</b>`,
-    ``,
-    `👤 ${escapeHtml(card.telegramName)}`,
-    `ចំនួនត្រា: <b>${card.stamps}/${STAMPS_FOR_FREE}</b>  ${stampRow(card.stamps)}`,
-    ``,
-    `✅ បោះ 1 ត្រាជូនអតិថិជននេះ?`,
-  ].join("\n");
-}
-
-/** Buttons barista sees to approve/reject a stamp. */
-export function staffStampKeyboard(qrToken: string): InlineKeyboard {
-  return {
-    inline_keyboard: [[
-      { text: "✅ បោះត្រា", callback_data: `loyalty_stamp_ok:${qrToken}` },
-      { text: "❌ បដិសេធ",  callback_data: `loyalty_stamp_no:${qrToken}` },
-    ]],
-  };
-}
-
-/** Confirmation text to barista after stamp was given. */
-export function staffStampDoneText(card: LoyaltyCard): string {
-  return [
-    `✅ <b>បានបោះត្រារួចរាល់!</b>`,
-    `👤 ${escapeHtml(card.telegramName)} — ${card.stamps}/${STAMPS_FOR_FREE}`,
-    pendingFreeCount(card) > 0 ? `🎁 អតិថិជននេះទទួលភេសជ្ជៈឥតគិតថ្លៃ!` : ``,
-  ].filter(Boolean).join("\n");
-}
-
-/** Message sent to barista group when customer wants to redeem a free drink. */
-export function staffRedeemText(card: LoyaltyCard): string {
-  return [
-    `🎁 <b>ស្នើប្រើភេសជ្ជៈឥតគិតថ្លៃ</b>`,
-    ``,
-    `👤 ${escapeHtml(card.telegramName)}`,
-    `ភេសជ្ជៈឥតគិតថ្លៃដែលនៅសល់: <b>${pendingFreeCount(card)}</b>`,
-    ``,
-    `✅ ផ្ដល់ភេសជ្ជៈឥតគិតថ្លៃ 1 គ្រឿង?`,
-  ].join("\n");
-}
-
-/** Buttons barista sees to approve/reject a free drink redemption. */
-export function staffRedeemKeyboard(telegramId: number): InlineKeyboard {
-  return {
-    inline_keyboard: [[
-      { text: "✅ ផ្ដល់ភេសជ្ជៈ", callback_data: `loyalty_redeem_ok:${telegramId}` },
-      { text: "❌ បដិសេធ",         callback_data: `loyalty_redeem_no:${telegramId}` },
-    ]],
-  };
-}

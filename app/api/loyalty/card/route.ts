@@ -10,8 +10,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTelegramInitData } from "@/lib/telegram";
 import { ensureLoyaltyCard } from "@/lib/loyaltyStore";
+import { syncLoyaltyCardToPos } from "@/lib/loyaltyBridge";
 
 export async function POST(req: NextRequest) {
+  if (process.env.NEXT_PUBLIC_LOYALTY_ENABLED !== "true") {
+    return NextResponse.json({ error: "Loyalty module is not enabled" }, { status: 404 });
+  }
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) {
     return NextResponse.json({ error: "Bot not configured" }, { status: 500 });
@@ -29,6 +33,7 @@ export async function POST(req: NextRequest) {
 
   const name = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ");
   const card = await ensureLoyaltyCard(tgUser.id, name);
+  await syncLoyaltyCardToPos(card).catch(() => null);
 
   const origin = req.nextUrl.origin;
   const stampUrl = `${origin}/api/loyalty/stamp?token=${card.qrToken}`;

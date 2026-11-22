@@ -11,6 +11,7 @@ interface BottomNavProps {
   onTabChange: (tab: NavTab) => void;
   trayCount?: number;
   telegram?: TelegramWebApp | null;
+  loyaltyEnabled?: boolean;
 }
 
 export function BottomNav({
@@ -18,6 +19,7 @@ export function BottomNav({
   onTabChange,
   trayCount = 0,
   telegram,
+  loyaltyEnabled = false,
 }: BottomNavProps) {
   const handleTabClick = (tab: NavTab) => {
     if (telegram?.HapticFeedback) {
@@ -28,7 +30,7 @@ export function BottomNav({
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.04)] font-khmer pb-[env(safe-area-inset-bottom)]">
-      <div className="max-w-md mx-auto grid grid-cols-2 h-16 px-4">
+      <div className={`max-w-md mx-auto grid ${loyaltyEnabled ? "grid-cols-2" : "grid-cols-1"} h-16 px-4`}>
         {/* Menu Tab */}
         <button
           onClick={() => handleTabClick("menu")}
@@ -53,7 +55,7 @@ export function BottomNav({
         </button>
 
         {/* Loyalty Stamp Tab */}
-        <button
+        {loyaltyEnabled && <button
           onClick={() => handleTabClick("loyalty")}
           className={`flex flex-col items-center justify-center gap-1 relative transition-colors ${
             activeTab === "loyalty"
@@ -68,7 +70,7 @@ export function BottomNav({
           {activeTab === "loyalty" && (
             <span className="absolute bottom-1 w-6 h-0.5 rounded-full bg-[#8E583C]" />
           )}
-        </button>
+        </button>}
       </div>
     </nav>
   );

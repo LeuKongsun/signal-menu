@@ -7,46 +7,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCardByQrToken } from "@/lib/loyaltyStore";
-import { staffStampApprovalText, staffStampKeyboard } from "@/lib/loyaltyMessages";
-import { parseTelegramChatIds, sendTelegramText } from "@/lib/telegram";
 
 export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get("token");
-  if (!token) {
-    return new NextResponse("Missing token", { status: 400 });
-  }
-
-  const card = await getCardByQrToken(token);
-  if (!card) {
-    return new NextResponse(
-      html("❌ QR មិនត្រឹមត្រូវ", "QR code not found or expired."),
-      { headers: { "Content-Type": "text/html; charset=utf-8" }, status: 404 }
-    );
-  }
-
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatIds  = parseTelegramChatIds(process.env.TELEGRAM_CHAT_ID);
-
-  if (botToken && chatIds.length > 0) {
-    await Promise.all(
-      chatIds.map((chatId) =>
-        sendTelegramText(
-          botToken,
-          chatId,
-          staffStampApprovalText(card),
-          staffStampKeyboard(token)
-        )
-      )
-    );
-  }
-
+  void req;
   return new NextResponse(
-    html(
-      "✅ ផ្ញើសំណើបោះត្រា",
-      `បានផ្ញើទៅបារីស្តារួចហើយ។ បារីស្តានឹងបោះត្រាជូន <b>${card.telegramName}</b> ក្នុងពេលបន្តិច។`
-    ),
-    { headers: { "Content-Type": "text/html; charset=utf-8" } }
+    html("🎫 Loyalty stamp", "This QR is read by the staff POS app. A public link cannot award a stamp."),
+    { headers: { "Content-Type": "text/html; charset=utf-8" }, status: 410 }
   );
 }
 

@@ -32,6 +32,8 @@ export interface OrderRecord {
   staffStatusLine?: string;
   /** The order message in each admin/seller chat, so every copy can be updated together. */
   staffCopies?: OrderCopy[];
+  /** True once a loyalty stamp has been awarded for this order on pickup (prevents duplicate stamps). */
+  loyaltyStamped?: boolean;
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 }
