@@ -25,6 +25,7 @@ import {
 } from "@/lib/orderMessages";
 import { renderReceiptImage } from "@/lib/receiptImage";
 import { ABA_PAYMENT_ENABLED } from "@/lib/aba";
+import { ensureLoyaltyCard } from "@/lib/loyaltyStore";
 
 interface OrderItemInput {
   nameKh: string;
@@ -186,6 +187,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (telegramUser) {
+      // Ensure loyalty card exists (creates if new, no-op if exists)
+      const tgName = [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(" ");
+      ensureLoyaltyCard(telegramUser.id, tgName).catch((err) =>
+        console.warn(`Could not ensure loyalty card for user ${telegramUser.id}:`, err)
+      );
+
       const keyboard = customerReceiptKeyboard(record, req.nextUrl.origin);
       let receiptImage: Uint8Array | null = null;
       try {
