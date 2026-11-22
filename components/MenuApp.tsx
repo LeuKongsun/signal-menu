@@ -14,6 +14,8 @@ import { MenuItemCard } from "./MenuItemCard";
 import { OrderTray, TrayItem } from "./OrderTray";
 import { PdfModal } from "./PdfModal";
 import { CheckoutModal } from "./CheckoutModal";
+import { BottomNav, NavTab } from "./BottomNav";
+import { LoyaltyCardView } from "./LoyaltyCardView";
 import { Coffee, SearchX } from "lucide-react";
 import { useTelegramWebApp } from "@/lib/useTelegramWebApp";
 
@@ -47,7 +49,18 @@ export function MenuApp() {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<NavTab>("menu");
   const tg = useTelegramWebApp();
+
+  // Support ?tab=loyalty or #loyalty
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "loyalty" || window.location.hash.includes("loyalty")) {
+        setActiveTab("loyalty");
+      }
+    });
+  }, []);
 
   const [trayLoaded, setTrayLoaded] = useState(false);
 
@@ -83,7 +96,7 @@ export function MenuApp() {
 
     let text: string | null = null;
     let action: (() => void) | null = null;
-    if (!isCheckoutModalOpen && trayCount > 0) {
+    if (!isCheckoutModalOpen && trayCount > 0 && activeTab === "menu") {
       const total = `${trayRiel.toLocaleString("en-US")}៛`;
       if (isTrayOpen) {
         text = `កុម្ម៉ង់ឥឡូវ • ${total}`;
@@ -110,7 +123,7 @@ export function MenuApp() {
     });
     button.onClick(action);
     return () => button.offClick(action);
-  }, [tg, isTrayOpen, isCheckoutModalOpen, trayCount, trayRiel]);
+  }, [tg, isTrayOpen, isCheckoutModalOpen, trayCount, trayRiel, activeTab]);
 
   useEffect(() => {
     if (!tg || !tg.isVersionAtLeast("6.1")) return;
@@ -224,7 +237,7 @@ export function MenuApp() {
   }, [searchQuery, selectedCategory]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF8F5]">
+    <div className="min-h-screen flex flex-col bg-[#FAF8F5] pb-20">
       {/* Header */}
       <Header
         searchQuery={searchQuery}
@@ -232,105 +245,152 @@ export function MenuApp() {
         currencyMode={currencyMode}
         onCurrencyChange={setCurrencyMode}
         onOpenPdf={() => setIsPdfModalOpen(true)}
+        showSearch={activeTab === "menu"}
       />
 
-      {/* Category Tabs */}
-      <CategoryTabs
-        selectedCategory={selectedCategory}
-        onSelectCategory={(cat) => {
-          setSelectedCategory(cat);
-          setSearchQuery("");
-        }}
-      />
+      {activeTab === "menu" ? (
+        <>
+          {/* Category Tabs */}
+          <CategoryTabs
+            selectedCategory={selectedCategory}
+            onSelectCategory={(cat) => {
+              setSelectedCategory(cat);
+              setSearchQuery("");
+            }}
+          />
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
-        {filteredItems.length === 0 ? (
-          // Empty Search State
-          <div className="py-16 text-center max-w-md mx-auto font-khmer">
-            <div className="w-14 h-14 rounded-2xl bg-amber-100 text-[#8E583C] flex items-center justify-center mx-auto mb-4">
-              <SearchX className="w-7 h-7" />
-            </div>
-            <h3 className="font-bold text-stone-800 text-lg mb-1">
-              រកមិនឃើញភេសជ្ជៈទេ
-            </h3>
-            <p className="text-sm text-stone-500 mb-4">
-              គ្មានភេសជ្ជៈណាត្រូវនឹង «{searchQuery}» ឡើយ។
-            </p>
-            <button
-              onClick={() => {
-                setSearchQuery("");
-                setSelectedCategory("all");
-              }}
-              className="px-4 py-2 rounded-xl bg-[#8E583C] text-white font-bold text-xs hover:bg-[#73432B] transition-colors"
-            >
-              បង្ហាញទាំងអស់
-            </button>
-          </div>
-        ) : selectedCategory === "all" && !searchQuery ? (
-          // Grouped by Category View when in "All" mode
-          <div className="space-y-10">
-            {MENU_CATEGORIES.map((cat) => {
-              const categoryItems = MENU_ITEMS.filter(
-                (i) => i.category === cat.key
-              );
-              if (categoryItems.length === 0) return null;
+          {/* Main Content */}
+          <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
+            {filteredItems.length === 0 ? (
+              // Empty Search State
+              <div className="py-16 text-center max-w-md mx-auto font-khmer">
+                <div className="w-14 h-14 rounded-2xl bg-amber-100 text-[#8E583C] flex items-center justify-center mx-auto mb-4">
+                  <SearchX className="w-7 h-7" />
+                </div>
+                <h3 className="font-bold text-stone-800 text-lg mb-1">
+                  រកមិនឃើញភេសជ្ជៈទេ
+                </h3>
+                <p className="text-sm text-stone-500 mb-4">
+                  គ្មានភេសជ្ជៈណាត្រូវនឹង «{searchQuery}» ឡើយ។
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedCategory("all");
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#8E583C] text-white font-bold text-xs hover:bg-[#73432B] transition-colors"
+                >
+                  បង្ហាញទាំងអស់
+                </button>
+              </div>
+            ) : selectedCategory === "all" && !searchQuery ? (
+              // Grouped by Category View when in "All" mode
+              <div className="space-y-10">
+                {MENU_CATEGORIES.map((cat) => {
+                  const categoryItems = MENU_ITEMS.filter(
+                    (i) => i.category === cat.key
+                  );
+                  if (categoryItems.length === 0) return null;
 
-              return (
-                <section key={cat.key} id={cat.key} className="scroll-mt-20">
-                  <h2 className="flex items-baseline gap-2 mb-3">
-                    <span className="font-khmer font-bold text-stone-900 text-lg">
-                      {cat.nameKh}
-                    </span>
-                    <span className="text-[11px] font-extrabold uppercase text-[#8E583C] tracking-wider">
-                      {cat.nameEn}
-                    </span>
+                  return (
+                    <section key={cat.key} id={cat.key} className="scroll-mt-20">
+                      <h2 className="flex items-baseline gap-2 mb-3">
+                        <span className="font-khmer font-bold text-stone-900 text-lg">
+                          {cat.nameKh}
+                        </span>
+                        <span className="text-[11px] font-extrabold uppercase text-[#8E583C] tracking-wider">
+                          {cat.nameEn}
+                        </span>
+                      </h2>
+                      {renderGrid(categoryItems)}
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              // Flat Grid View for specific category or search
+              <div>
+                <div className="flex items-center justify-between mb-4 font-khmer">
+                  <h2 className="font-bold text-stone-900 text-lg">
+                    {searchQuery ? (
+                      <span>
+                        លទ្ធផលស្វែងរក «{searchQuery}»
+                      </span>
+                    ) : (
+                      <span>
+                        {
+                          MENU_CATEGORIES.find((c) => c.key === selectedCategory)
+                            ?.nameKh
+                        }
+                      </span>
+                    )}
                   </h2>
-                  {renderGrid(categoryItems)}
-                </section>
-              );
-            })}
-          </div>
-        ) : (
-          // Flat Grid View for specific category or search
-          <div>
-            <div className="flex items-center justify-between mb-4 font-khmer">
-              <h2 className="font-bold text-stone-900 text-lg">
-                {searchQuery ? (
-                  <span>
-                    លទ្ធផលស្វែងរក «{searchQuery}»
+                  <span className="text-xs font-bold text-stone-500">
+                    {filteredItems.length} កែវ
                   </span>
-                ) : (
-                  <span>
-                    {
-                      MENU_CATEGORIES.find((c) => c.key === selectedCategory)
-                        ?.nameKh
-                    }
-                  </span>
-                )}
-              </h2>
-              <span className="text-xs font-bold text-stone-500">
-                {filteredItems.length} កែវ
-              </span>
+                </div>
+
+                {renderGrid(filteredItems)}
+              </div>
+            )}
+          </main>
+
+          {/* Footer */}
+          <footer className="mt-16 bg-[#2A1B14] text-stone-300 py-8 px-4 border-t border-stone-800">
+            <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#8E583C] text-white flex items-center justify-center font-bold">
+                  <Coffee className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-black text-white text-base tracking-wider uppercase">
+                    SIGNAL CAFE
+                  </div>
+                  <div className="text-xs text-stone-400 font-khmer">
+                    កាហ្វេ និងភេសជ្ជៈស្រស់ៗគុណភាពខ្ពស់
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-xs text-stone-400 font-khmer">
+                <span>តម្លៃគិតជាប្រាក់រៀល (៛) និងដុល្លារ ($)</span>
+                <div className="mt-1">
+                  សូមអរគុណសម្រាប់ការគាំទ្រហាង SIGNAL
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsPdfModalOpen(true)}
+                className="text-xs font-semibold text-amber-200 hover:text-white underline underline-offset-4 font-khmer"
+              >
+                មើលម៉ឺនុយ PDF
+              </button>
             </div>
+          </footer>
+        </>
+      ) : (
+        <main className="flex-1 max-w-6xl w-full mx-auto">
+          <LoyaltyCardView
+            telegram={tg}
+            onGoToMenu={() => setActiveTab("menu")}
+          />
+        </main>
+      )}
 
-            {renderGrid(filteredItems)}
-          </div>
-        )}
-      </main>
-
-      {/* Order Tray / Bottom Calculator */}
-      <OrderTray
-        tray={tray}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-        onClearTray={handleClearTray}
-        onProceedToCheckout={() => setIsCheckoutModalOpen(true)}
-        currencyMode={currencyMode}
-        isOpen={isTrayOpen && trayCount > 0}
-        onOpenChange={setIsTrayOpen}
-        nativeButtons={Boolean(tg)}
-      />
+      {/* Order Tray / Bottom Calculator (only active on menu tab) */}
+      {activeTab === "menu" && (
+        <OrderTray
+          tray={tray}
+          onUpdateQuantity={handleUpdateQuantity}
+          onRemoveItem={handleRemoveItem}
+          onClearTray={handleClearTray}
+          onProceedToCheckout={() => setIsCheckoutModalOpen(true)}
+          currencyMode={currencyMode}
+          isOpen={isTrayOpen && trayCount > 0}
+          onOpenChange={setIsTrayOpen}
+          nativeButtons={Boolean(tg)}
+        />
+      )}
 
       {/* Checkout & Telegram Payment Modal */}
       {isCheckoutModalOpen && (
@@ -349,38 +409,13 @@ export function MenuApp() {
         onClose={() => setIsPdfModalOpen(false)}
       />
 
-      {/* Footer */}
-      <footer className="mt-16 bg-[#2A1B14] text-stone-300 py-8 px-4 border-t border-stone-800">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#8E583C] text-white flex items-center justify-center font-bold">
-              <Coffee className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-black text-white text-base tracking-wider uppercase">
-                SIGNAL CAFE
-              </div>
-              <div className="text-xs text-stone-400 font-khmer">
-                កាហ្វេ និងភេសជ្ជៈស្រស់ៗគុណភាពខ្ពស់
-              </div>
-            </div>
-          </div>
-
-          <div className="text-xs text-stone-400 font-khmer">
-            <span>តម្លៃគិតជាប្រាក់រៀល (៛) និងដុល្លារ ($)</span>
-            <div className="mt-1">
-              សូមអរគុណសម្រាប់ការគាំទ្រហាង SIGNAL
-            </div>
-          </div>
-
-          <button
-            onClick={() => setIsPdfModalOpen(true)}
-            className="text-xs font-semibold text-amber-200 hover:text-white underline underline-offset-4 font-khmer"
-          >
-            មើលម៉ឺនុយ PDF
-          </button>
-        </div>
-      </footer>
+      {/* Fixed Bottom Navigation (Menu / Loyalty) */}
+      <BottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        trayCount={trayCount}
+        telegram={tg}
+      />
     </div>
   );
 }

@@ -74,9 +74,9 @@ export function OrderTray({
 
   return (
     <>
-      {/* Floating Bottom Bar */}
+      {/* Floating Bottom Bar (floats above bottom navigation) */}
       <div
-        className={`fixed bottom-4 left-0 right-0 z-40 px-4 max-w-lg mx-auto pointer-events-none ${
+        className={`fixed bottom-20 left-0 right-0 z-40 px-4 max-w-lg mx-auto pointer-events-none ${
           nativeButtons ? "hidden" : ""
         }`}
       >

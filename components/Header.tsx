@@ -9,6 +9,7 @@ interface HeaderProps {
   currencyMode: "both" | "usd" | "khr";
   onCurrencyChange: (mode: "both" | "usd" | "khr") => void;
   onOpenPdf: () => void;
+  showSearch?: boolean;
 }
 
 export function Header({
@@ -17,6 +18,7 @@ export function Header({
   currencyMode,
   onCurrencyChange,
   onOpenPdf,
+  showSearch = true,
 }: HeaderProps) {
   return (
     <header className="relative bg-[#FAF7F2] border-b border-stone-200/80 pt-6 pb-4 px-4 overflow-hidden">
@@ -94,26 +96,28 @@ export function Header({
         </div>
 
         {/* Search Bar */}
-        <div className="mt-2 relative">
-          <div className="relative flex items-center">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3.5 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="ស្វែងរកភេសជ្ជៈ..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white border border-stone-200 text-sm placeholder:text-stone-400 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C] shadow-xs transition-all font-khmer"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange("")}
-                className="absolute right-3 p-1 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+        {showSearch && (
+          <div className="mt-2 relative">
+            <div className="relative flex items-center">
+              <Search className="w-4 h-4 text-stone-400 absolute left-3.5 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="ស្វែងរកភេសជ្ជៈ..."
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white border border-stone-200 text-sm placeholder:text-stone-400 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#8E583C]/30 focus:border-[#8E583C] shadow-xs transition-all font-khmer"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => onSearchChange("")}
+                  className="absolute right-3 p-1 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </header>
   );

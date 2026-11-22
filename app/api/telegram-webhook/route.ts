@@ -166,20 +166,21 @@ export async function POST(req: NextRequest) {
     // Private chat: /start, /loyalty, /card
     const incoming = update.message;
     if (incoming?.chat?.type === "private") {
-      const appUrl = process.env.TELEGRAM_MINI_APP_URL || `${req.nextUrl.origin}/`;
       const text   = typeof incoming.text === "string" ? incoming.text : "";
       const chatId = incoming.chat.id;
       const tgUser = incoming.from as { id: number; first_name?: string; last_name?: string; username?: string } | undefined;
 
       if (text.startsWith("/start")) {
-        const cardUrl = `${req.nextUrl.origin}/loyalty/card`;
+        const baseAppUrl = (process.env.TELEGRAM_MINI_APP_URL || req.nextUrl.origin).replace(/\/$/, "");
+        const menuUrl = `${baseAppUrl}/`;
+        const cardUrl = `${baseAppUrl}/?tab=loyalty`;
         await sendTelegramText(
           botToken,
           chatId,
           `☕ <b>សូមស្វាគមន៍មកកាន់ SIGNAL Cafe!</b>\n\nកុម្ម៉ង់ភេសជ្ជៈ ឬមើលស្តាម្ពការ្ដរបស់អ្នក៖`,
           {
             inline_keyboard: [
-              [{ text: "☕ ម៉ឺនុយ / Mini App", web_app: { url: appUrl } }],
+              [{ text: "☕ ម៉ឺនុយ / Mini App", web_app: { url: menuUrl } }],
               [{ text: "🎫 ស្តាម្ពការ្ដ",    web_app: { url: cardUrl } }],
             ],
           }
