@@ -17,7 +17,9 @@ export async function syncLoyaltyCardToPos(card: {
 }) {
   const url = process.env.POS_LOYALTY_SYNC_URL;
   const secret = process.env.LOYALTY_BRIDGE_SECRET;
-  if (!url || !secret) return null;
+  if (!url || !secret) {
+    throw new Error("POS loyalty bridge is not configured");
+  }
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -27,6 +29,9 @@ export async function syncLoyaltyCardToPos(card: {
     body: JSON.stringify(card),
     cache: "no-store",
   });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    const data = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(data?.error || `POS loyalty sync returned ${response.status}`);
+  }
   return response.json() as Promise<{ card?: unknown }>;
 }
