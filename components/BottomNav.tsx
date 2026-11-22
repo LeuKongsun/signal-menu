@@ -64,7 +64,7 @@ export function BottomNav({
           <div className="relative">
             <Award className={`w-5 h-5 transition-transform ${activeTab === "loyalty" ? "scale-110" : ""}`} />
           </div>
-          <span className="text-xs">ស្តាម្ពការ្ដ</span>
+          <span className="text-xs">កាតសន្សំពិន្ទុ</span>
           {activeTab === "loyalty" && (
             <span className="absolute bottom-1 w-6 h-0.5 rounded-full bg-[#8E583C]" />
           )}

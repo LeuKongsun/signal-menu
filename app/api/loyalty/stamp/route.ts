@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
 
   return new NextResponse(
     html(
-      "✅ ផ្ញើសំណើស្តាម្ព",
-      `បានផ្ញើទៅបារីស្តារួចហើយ។ បារីស្តានឹងផ្ដល់ស្តាម្ពដល់ <b>${card.telegramName}</b> ក្នុងពេលបន្តិច។`
+      "✅ ផ្ញើសំណើបោះត្រា",
+      `បានផ្ញើទៅបារីស្តារួចហើយ។ បារីស្តានឹងបោះត្រាជូន <b>${card.telegramName}</b> ក្នុងពេលបន្តិច។`
     ),
     { headers: { "Content-Type": "text/html; charset=utf-8" } }
   );

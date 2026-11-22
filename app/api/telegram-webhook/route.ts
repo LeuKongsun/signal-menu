@@ -177,11 +177,11 @@ export async function POST(req: NextRequest) {
         await sendTelegramText(
           botToken,
           chatId,
-          `☕ <b>សូមស្វាគមន៍មកកាន់ SIGNAL Cafe!</b>\n\nកុម្ម៉ង់ភេសជ្ជៈ ឬមើលស្តាម្ពការ្ដរបស់អ្នក៖`,
+          `☕ <b>សូមស្វាគមន៍មកកាន់ SIGNAL Cafe!</b>\n\nកុម្ម៉ង់ភេសជ្ជៈ ឬមើលកាតសន្សំពិន្ទុរបស់អ្នក៖`,
           {
             inline_keyboard: [
               [{ text: "☕ ម៉ឺនុយ / Mini App", web_app: { url: menuUrl } }],
-              [{ text: "🎫 ស្តាម្ពការ្ដ",    web_app: { url: cardUrl } }],
+              [{ text: "🎫 កាតសន្សំពិន្ទុ", web_app: { url: cardUrl } }],
             ],
           }
         );
@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
       const { card: updated, earnedFree } = await addStamp(card.telegramId, card.telegramName);
-      await answerCallbackQuery(botToken, callbackId, earnedFree ? "🎁 ស្តាម្ព + ភេសជ្ជៈឥតគិតថ្លៃ!" : "✅ ស្តាម្ពបានផ្ដល់!");
+      await answerCallbackQuery(botToken, callbackId, earnedFree ? "🎁 ត្រា + ភេសជ្ជៈឥតគិតថ្លៃ!" : "✅ បានបោះត្រារួចរាល់!");
 
       // Edit the approval message in the staff chat to show done state
       await editOrderMessage(
@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
       await editOrderMessage(
         botToken,
         { chatId: message.chat.id, messageId: message.message_id, isPhoto: false },
-        "❌ បានបដិសេធស្តាម្ព",
+        "❌ បានបដិសេធការបោះត្រា",
         { inline_keyboard: [] }
       );
       return NextResponse.json({ ok: true });
@@ -513,7 +513,7 @@ async function notifyCustomerCardUpdate(
 
   // Card was edited in-place (silent) — send a short reply to alert the customer
   const alert = pending > 0
-    ? `🎁 ស្តាម្ពបានផ្ដល់! អ្នកទទួលបានភេសជ្ជៈឥតគិតថ្លៃ 1 គ្រឿង!`
-    : `☕ ស្តាម្ពបានផ្ដល់! ${card.stamps}/${10} ស្តាម្ព`;
+    ? `🎁 បានបោះត្រាជូន! អ្នកទទួលបានភេសជ្ជៈឥតគិតថ្លៃ 1 គ្រឿង!`
+    : `☕ បានបោះត្រាជូន! ${card.stamps}/${10} ត្រា`;
   await sendTelegramText(botToken, chatId, alert, undefined, card.cardMessageId);
 }

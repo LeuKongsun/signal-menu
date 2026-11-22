@@ -70,9 +70,9 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
           <div className="w-14 h-14 rounded-2xl bg-[#8E583C]/10 text-[#8E583C] flex items-center justify-center mx-auto mb-3">
             <Coffee className="w-7 h-7" />
           </div>
-          <h2 className="text-lg font-bold text-stone-800 mb-2">ស្តាម្ពការ្ដ SIGNAL</h2>
+          <h2 className="text-lg font-bold text-stone-800 mb-2">កាតសន្សំពិន្ទុ SIGNAL</h2>
           <p className="text-sm text-stone-600 mb-5 leading-relaxed">
-            មុខងារស្តាម្ពដំណើរការតែនៅក្នុង Telegram Bot ប៉ុណ្ណោះ ដើម្បីសន្សំពិន្ទុ និងទទួលភេសជ្ជៈឥតគិតថ្លៃ។
+            មុខងារសន្សំពិន្ទុដំណើរការតែនៅក្នុង Telegram Bot ប៉ុណ្ណោះ ដើម្បីសន្សំពិន្ទុ និងទទួលភេសជ្ជៈឥតគិតថ្លៃ។
           </p>
           {onGoToMenu && (
             <button
@@ -91,7 +91,7 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <div className="w-8 h-8 border-3 border-[#8E583C] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-stone-500 font-khmer">កំពុងផ្ទុកព័ត៌មានស្តាម្ព…</p>
+        <p className="text-sm text-stone-500 font-khmer">កំពុងផ្ទុកព័ត៌មានកាត…</p>
       </div>
     );
   }
@@ -107,14 +107,14 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
           <Coffee className="w-3.5 h-3.5" />
           <span>SIGNAL LOYALTY</span>
         </div>
-        <h1 className="text-2xl font-black text-[#2A1B14]">បន្ទះស្តាម្ពកាហ្វេ</h1>
+        <h1 className="text-2xl font-black text-[#2A1B14]">កាតសន្សំពិន្ទុ</h1>
         <p className="text-xs text-stone-500 mt-0.5">{card.telegramName}</p>
       </div>
 
       {/* Stamp Progress Card */}
       <div className="bg-white rounded-3xl shadow-sm border border-stone-200/70 p-5 w-full">
         <div className="flex justify-between items-center mb-4">
-          <span className="text-sm font-bold text-stone-800">ចំនួនស្តាម្ពសន្សំ</span>
+          <span className="text-sm font-bold text-stone-800">ចំនួនត្រាសន្សំ</span>
           <span className="text-sm font-extrabold px-2.5 py-0.5 rounded-full bg-[#8E583C] text-white">
             {stamps}/{STAMPS_FOR_FREE}
           </span>
@@ -145,11 +145,11 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
             </div>
           ) : stamps === 0 ? (
             <p className="text-xs text-stone-500">
-              ទទួល 1 ស្តាម្ព រាល់ការកុម្ម៉ង់ភេសជ្ជៈ
+              ទទួល 1 ត្រា រាល់ការកុម្ម៉ង់ភេសជ្ជៈ
             </p>
           ) : (
             <p className="text-xs text-stone-600">
-              នៅខ្វះ <b className="text-[#8E583C]">{STAMPS_FOR_FREE - stamps}</b> ស្តាម្ពទៀត ទទួលបាន ១ គ្រឿងឥតគិតថ្លៃ
+              នៅខ្វះ <b className="text-[#8E583C]">{STAMPS_FOR_FREE - stamps}</b> ត្រាទៀត ទទួលបាន ១ គ្រឿងឥតគិតថ្លៃ
             </p>
           )}
         </div>
@@ -175,13 +175,13 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
         </div>
 
         <p className="text-[11px] text-stone-400 mt-3">
-          ពេលទិញនៅបញ្ជរ បង្ហាញ QR នេះដើម្បីឱ្យបារីស្តាស្កេនផ្ដល់ស្តាម្ព
+          ពេលទិញនៅបញ្ជរ បង្ហាញ QR នេះដើម្បីឱ្យបារីស្តាស្កេនបោះត្រា
         </p>
       </div>
 
       {/* Stats summary */}
       <div className="flex items-center justify-center gap-4 text-xs text-stone-500 pt-1">
-        <span>សរុបស្តាម្ពធ្លាប់សន្សំ៖ <b>{card.totalEarned}</b></span>
+        <span>សរុបត្រាធ្លាប់សន្សំ៖ <b>{card.totalEarned}</b></span>
         <span>•</span>
         <span>ឥតគិតថ្លៃ៖ <b>{card.freeDrinksClaimed}</b></span>
       </div>

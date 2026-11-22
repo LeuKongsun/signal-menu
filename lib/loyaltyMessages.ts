@@ -19,27 +19,27 @@ export function loyaltyCardText(card: LoyaltyCard): string {
 
   if (pending > 0) {
     return [
-      `🎁 <b>SIGNAL Cafe · ស្តាម្ព</b>`,
+      `🎁 <b>SIGNAL Cafe · កាតសន្សំពិន្ទុ</b>`,
       ``,
       `${stampRow(card.stamps)}`,
       ``,
       `🎉 <b>អ្នករួចទទួលភេសជ្ជៈឥតគិតថ្លៃ ${pending} គ្រឿង!</b>`,
       `បង្ហាញកាតនេះទៅបារីស្តា ដើម្បីប្រើប្រាស់។`,
       ``,
-      `📊 សរុបស្តាម្ព: <b>${card.totalEarned}</b>`,
+      `📊 សរុបត្រា: <b>${card.totalEarned}</b>`,
     ].join("\n");
   }
 
   return [
-    `☕ <b>SIGNAL Cafe · ស្តាម្ព</b>`,
+    `☕ <b>SIGNAL Cafe · កាតសន្សំពិន្ទុ</b>`,
     ``,
     `${stampRow(card.stamps)} <b>${card.stamps}/${STAMPS_FOR_FREE}</b>`,
     ``,
     card.stamps === 0
-      ? `ទទួល 1 ស្តាម្ព រៀងរាល់ការកុម្ម៉ង់!`
-      : `នៅខ្វះ <b>${STAMPS_FOR_FREE - card.stamps}</b> ស្តាម្ពទៀត`,
+      ? `ទទួល 1 ត្រា រៀងរាល់ការកុម្ម៉ង់!`
+      : `នៅខ្វះ <b>${STAMPS_FOR_FREE - card.stamps}</b> ត្រាទៀត`,
     ``,
-    `📊 សរុបស្តាម្ព: <b>${card.totalEarned}</b>  🎁 ឥតគិតថ្លៃ: <b>${card.freeDrinksClaimed}</b>`,
+    `📊 សរុបត្រា: <b>${card.totalEarned}</b>  🎁 ឥតគិតថ្លៃ: <b>${card.freeDrinksClaimed}</b>`,
     ``,
     `🔗 QR: <code>${qrUrl}</code>`,
   ].join("\n");
@@ -58,12 +58,12 @@ export function loyaltyCardKeyboard(card: LoyaltyCard): InlineKeyboard {
 /** Message barista sees when approving a stamp (via QR scan). */
 export function staffStampApprovalText(card: LoyaltyCard): string {
   return [
-    `🎫 <b>សំណើស្តាម្ព</b>`,
+    `🎫 <b>សំណើបោះត្រា</b>`,
     ``,
     `👤 ${escapeHtml(card.telegramName)}`,
-    `ស្តាម្ព: <b>${card.stamps}/${STAMPS_FOR_FREE}</b>  ${stampRow(card.stamps)}`,
+    `ចំនួនត្រា: <b>${card.stamps}/${STAMPS_FOR_FREE}</b>  ${stampRow(card.stamps)}`,
     ``,
-    `✅ ផ្ដល់ 1 ស្តាម្ពដល់អតិថិជននេះ?`,
+    `✅ បោះ 1 ត្រាជូនអតិថិជននេះ?`,
   ].join("\n");
 }
 
@@ -71,8 +71,8 @@ export function staffStampApprovalText(card: LoyaltyCard): string {
 export function staffStampKeyboard(qrToken: string): InlineKeyboard {
   return {
     inline_keyboard: [[
-      { text: "✅ ផ្ដល់ស្តាម្ព", callback_data: `loyalty_stamp_ok:${qrToken}` },
-      { text: "❌ បដិសេធ",        callback_data: `loyalty_stamp_no:${qrToken}` },
+      { text: "✅ បោះត្រា", callback_data: `loyalty_stamp_ok:${qrToken}` },
+      { text: "❌ បដិសេធ",  callback_data: `loyalty_stamp_no:${qrToken}` },
     ]],
   };
 }
@@ -80,7 +80,7 @@ export function staffStampKeyboard(qrToken: string): InlineKeyboard {
 /** Confirmation text to barista after stamp was given. */
 export function staffStampDoneText(card: LoyaltyCard): string {
   return [
-    `✅ <b>ស្តាម្ពបានផ្ដល់!</b>`,
+    `✅ <b>បានបោះត្រារួចរាល់!</b>`,
     `👤 ${escapeHtml(card.telegramName)} — ${card.stamps}/${STAMPS_FOR_FREE}`,
     pendingFreeCount(card) > 0 ? `🎁 អតិថិជននេះទទួលភេសជ្ជៈឥតគិតថ្លៃ!` : ``,
   ].filter(Boolean).join("\n");
