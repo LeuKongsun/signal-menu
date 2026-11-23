@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { TelegramWebApp } from "@/lib/useTelegramWebApp";
-import { Coffee, Gift, QrCode } from "lucide-react";
+import { Coffee, Gift, QrCode, X } from "lucide-react";
 
 interface LoyaltyCardData {
   telegramName: string;
@@ -26,6 +26,7 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
   const [card, setCard] = useState<LoyaltyCardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isReadyTimeout, setIsReadyTimeout] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
 
   // If opened outside Telegram, give the script 2.5 seconds to load before showing fallback
   useEffect(() => {
@@ -101,7 +102,16 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
   const stamps = card.stamps;
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6 flex flex-col items-center gap-5 font-khmer">
+    <div className="relative max-w-md mx-auto px-4 py-6 flex flex-col items-center gap-5 font-khmer">
+      <button
+        type="button"
+        onClick={() => setIsQrOpen(true)}
+        aria-label="បង្ហាញ QR សម្រាប់បោះត្រា"
+        className="fixed top-3 right-3 z-40 w-11 h-11 rounded-full bg-[#8E583C] text-white shadow-lg shadow-[#8E583C]/25 flex items-center justify-center hover:bg-[#73432B] active:scale-95 transition-all"
+      >
+        <QrCode className="w-5 h-5" />
+      </button>
+
       {/* Title & Customer Name */}
       <div className="text-center">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#8E583C]/10 text-[#8E583C] text-xs font-bold mb-1">
@@ -162,47 +172,50 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
         </div>
       </div>
 
-      {/* QR Code Card for Barista to Scan */}
-      <div className="bg-white rounded-3xl shadow-sm border border-stone-200/70 p-5 w-full flex flex-col items-center text-center">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-stone-600 mb-3">
-          <QrCode className="w-4 h-4 text-[#8E583C]" />
-          <span>បង្ហាញ QR នេះទៅកាន់បារីស្តា</span>
-        </div>
-
-        <div className="p-3 bg-stone-50 rounded-2xl border border-stone-100">
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(
-              card.stampUrl
-            )}`}
-            alt="Barista Stamp QR"
-            width={200}
-            height={200}
-            className="rounded-xl"
-          />
-        </div>
-
-        <p className="text-[11px] text-stone-400 mt-3">
-          ពេលទិញនៅបញ្ជរ បង្ហាញ QR នេះដើម្បីឱ្យបារីស្តាស្កេនបោះត្រា
-        </p>
-      </div>
-
-      {/* Stats summary */}
-      <div className="flex items-center justify-center gap-4 text-xs text-stone-500 pt-1">
-        <span>សរុបត្រាធ្លាប់សន្សំ៖ <b>{card.totalEarned}</b></span>
-        <span>•</span>
-        <span>ឥតគិតថ្លៃ៖ <b>{card.freeDrinksClaimed}</b></span>
-      </div>
-
-      {/* Order Drink Button */}
-      {onGoToMenu && (
-        <button
-          onClick={onGoToMenu}
-          className="w-full max-w-xs py-3 px-4 rounded-2xl bg-[#8E583C] text-white font-bold text-sm hover:bg-[#73432B] transition-all shadow-md shadow-[#8E583C]/20 flex items-center justify-center gap-2 mt-2"
+      {isQrOpen ? (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-5"
+          role="dialog"
+          aria-modal="true"
+          aria-label="QR សម្រាប់បោះត្រា"
+          onClick={() => setIsQrOpen(false)}
         >
-          <Coffee className="w-4 h-4" />
-          <span>ទៅកាន់ម៉ឺនុយភេសជ្ជៈ</span>
-        </button>
-      )}
+          <div
+            className="relative w-full max-w-sm rounded-3xl bg-white p-5 text-center shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setIsQrOpen(false)}
+              aria-label="បិទ QR"
+              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-stone-200 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-stone-800 mb-4 pr-8">
+              <QrCode className="w-5 h-5 text-[#8E583C]" />
+              <span>QR សម្រាប់បោះត្រា</span>
+            </div>
+
+            <div className="mx-auto w-fit p-3 bg-stone-50 rounded-2xl border border-stone-200">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=8&data=${encodeURIComponent(
+                  card.stampUrl
+                )}`}
+                alt="Barista Stamp QR"
+                width={280}
+                height={280}
+                className="block w-[280px] h-[280px] max-w-full rounded-xl"
+              />
+            </div>
+
+            <p className="text-xs text-stone-500 mt-4">
+              សូមអោយបារីស្តាស្កេន QR នេះ
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
