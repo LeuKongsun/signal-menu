@@ -26,6 +26,7 @@ import {
 import { renderReceiptImage } from "@/lib/receiptImage";
 import { ABA_PAYMENT_ENABLED } from "@/lib/aba";
 import { ensureLoyaltyCard } from "@/lib/loyaltyStore";
+import { syncOnlineOrderToPos } from "@/lib/onlineOrderBridge";
 
 interface OrderItemInput {
   nameKh: string;
@@ -60,7 +61,7 @@ async function storeWithUniqueNumber(
 }
 
 export async function POST(req: NextRequest) {
-  try {
+  if (process.env.NEXT_PUBLIC_ONLINE_ORDERING_ENABLED === "true") try {
     const formData = await req.formData();
     const rawOrderData = formData.get("orderData") as string | null;
     const telegramInitData = formData.get("telegramInitData") as string | null;
@@ -124,6 +125,23 @@ export async function POST(req: NextRequest) {
       updatedAt: now,
     });
     const { orderNumber } = record;
+    try {
+      await syncOnlineOrderToPos({
+        orderNumber,
+        idempotencyKey: `miniapp:${orderNumber}`,
+        customerName: record.customerName,
+        customerPhone: record.customerPhone,
+        customerNotes: record.customerNotes,
+        paymentMethod: record.paymentMethod,
+        paymentStatus: record.abaPayment,
+        items: record.items,
+        totalRiel: record.totalRiel,
+        totalUsd: record.totalUsd,
+        customerTelegramId: record.customerTelegram?.id ? String(record.customerTelegram.id) : undefined,
+      });
+    } catch (error) {
+      console.error(`Could not sync online order ${orderNumber} to POS`, error);
+    }
     const caption = staffOrderText(record, PENDING_STATUS_LINE);
 
     const inlineKeyboard = staffKeyboard(orderNumber, "pending");
