@@ -33,10 +33,16 @@ export async function POST(req: NextRequest) {
 
   const name = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ");
   const card = await ensureLoyaltyCard(tgUser.id, name);
+  let loyaltySync: { status: "synced" | "failed"; error?: string };
   try {
     await syncLoyaltyCardToPos(card);
+    loyaltySync = { status: "synced" };
   } catch (error) {
     console.error("Unable to synchronize loyalty card to POS", error);
+    loyaltySync = {
+      status: "failed",
+      error: error instanceof Error ? error.message : "POS loyalty sync failed",
+    };
   }
 
   const origin = req.nextUrl.origin;
@@ -50,5 +56,6 @@ export async function POST(req: NextRequest) {
     freeDrinksRedeemed: card.freeDrinksRedeemed ?? 0,
     qrToken: card.qrToken,
     stampUrl,
+    loyaltySync,
   });
 }

@@ -12,6 +12,7 @@ interface LoyaltyCardData {
   freeDrinksRedeemed: number;
   qrToken: string;
   stampUrl: string;
+  loyaltySync?: { status: "synced" | "failed"; error?: string };
 }
 
 const STAMPS_FOR_FREE = 10;
@@ -110,6 +111,12 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
         <h1 className="text-2xl font-black text-[#2A1B14]">កាតសន្សំពិន្ទុ</h1>
         <p className="text-xs text-stone-500 mt-0.5">{card.telegramName}</p>
       </div>
+
+      {card.loyaltySync?.status === "failed" ? (
+        <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800 font-khmer">
+          កាតនេះមិនទាន់ភ្ជាប់ទៅ POS។ សូមពិនិត្យការកំណត់ Bridge រួចបើកកាតម្ដងទៀត។
+        </div>
+      ) : null}
 
       {/* Stamp Progress Card */}
       <div className="bg-white rounded-3xl shadow-sm border border-stone-200/70 p-5 w-full">
