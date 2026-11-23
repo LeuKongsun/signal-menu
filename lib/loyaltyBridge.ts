@@ -26,7 +26,10 @@ export async function syncLoyaltyCardToPos(card: {
       "Content-Type": "application/json",
       "x-loyalty-bridge-secret": secret,
     },
-    body: JSON.stringify(card),
+    body: JSON.stringify({
+      ...card,
+      telegramId: String(card.telegramId),
+    }),
     cache: "no-store",
   });
   if (!response.ok) {
