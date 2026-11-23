@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { TelegramWebApp } from "@/lib/useTelegramWebApp";
-import { Coffee, Gift, QrCode, X } from "lucide-react";
-import QRCode from "qrcode";
+import { Coffee, Gift } from "lucide-react";
 
 interface LoyaltyCardData {
   telegramName: string;
@@ -20,16 +19,13 @@ const STAMPS_FOR_FREE = 10;
 
 interface LoyaltyCardViewProps {
   telegram: TelegramWebApp | null;
-  openQrRequest?: number;
   onGoToMenu?: () => void;
 }
 
-export function LoyaltyCardView({ telegram, openQrRequest = 0, onGoToMenu }: LoyaltyCardViewProps) {
+export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) {
   const [card, setCard] = useState<LoyaltyCardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isReadyTimeout, setIsReadyTimeout] = useState(false);
-  const [dismissedQrRequest, setDismissedQrRequest] = useState(0);
-  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
 
   // If opened outside Telegram, give the script 2.5 seconds to load before showing fallback
   useEffect(() => {
@@ -55,30 +51,6 @@ export function LoyaltyCardView({ telegram, openQrRequest = 0, onGoToMenu }: Loy
       })
       .catch(() => setError("មានបញ្ហា សូមសាកល្បងម្ដងទៀត"));
   }, [telegram?.initData]);
-
-  useEffect(() => {
-    if (!card?.stampUrl) return;
-    let cancelled = false;
-
-    QRCode.toDataURL(card.stampUrl, {
-      width: 280,
-      margin: 2,
-      color: {
-        dark: "#241A15",
-        light: "#FFFFFF",
-      },
-    })
-      .then((url) => {
-        if (!cancelled) setQrImageUrl(url);
-      })
-      .catch(() => {
-        if (!cancelled) setQrImageUrl(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [card?.stampUrl]);
 
   if (error) {
     return (
@@ -127,7 +99,6 @@ export function LoyaltyCardView({ telegram, openQrRequest = 0, onGoToMenu }: Loy
 
   const pending = card.freeDrinksClaimed - (card.freeDrinksRedeemed ?? 0);
   const stamps = card.stamps;
-  const isQrOpen = openQrRequest > dismissedQrRequest;
 
   return (
     <div className="relative max-w-md mx-auto px-4 py-6 flex flex-col items-center gap-5 font-khmer">
@@ -191,54 +162,6 @@ export function LoyaltyCardView({ telegram, openQrRequest = 0, onGoToMenu }: Loy
         </div>
       </div>
 
-      {isQrOpen ? (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-5"
-          role="dialog"
-          aria-modal="true"
-          aria-label="QR សម្រាប់បោះត្រា"
-          onClick={() => setDismissedQrRequest(openQrRequest)}
-        >
-          <div
-            className="relative w-full max-w-sm rounded-3xl bg-white p-5 text-center shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setDismissedQrRequest(openQrRequest)}
-              aria-label="បិទ QR"
-              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-stone-200 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-stone-800 mb-4 pr-8">
-              <QrCode className="w-5 h-5 text-[#8E583C]" />
-              <span>QR សម្រាប់បោះត្រា</span>
-            </div>
-
-            <div className="mx-auto w-fit p-3 bg-stone-50 rounded-2xl border border-stone-200">
-              {qrImageUrl ? (
-                <img
-                  src={qrImageUrl}
-                  alt="Barista Stamp QR"
-                  width={280}
-                  height={280}
-                  className="block w-[280px] h-[280px] max-w-full rounded-xl"
-                />
-              ) : (
-                <div className="w-[280px] h-[280px] max-w-full rounded-xl flex items-center justify-center">
-                  <div className="w-8 h-8 border-3 border-[#8E583C] border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-            </div>
-
-            <p className="text-xs text-stone-500 mt-4">
-              សូមអោយបារីស្តាស្កេន QR នេះ
-            </p>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

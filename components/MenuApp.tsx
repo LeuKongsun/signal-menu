@@ -16,8 +16,9 @@ import { PdfModal } from "./PdfModal";
 import { CheckoutModal } from "./CheckoutModal";
 import { BottomNav, NavTab } from "./BottomNav";
 import { LoyaltyCardView } from "./LoyaltyCardView";
-import { Coffee, SearchX } from "lucide-react";
+import { Coffee, QrCode, SearchX, X } from "lucide-react";
 import { useTelegramWebApp } from "@/lib/useTelegramWebApp";
+import QRCode from "qrcode";
 
 const TRAY_STORAGE_KEY = "signal-tray-v1";
 type StoredTrayEntry = { id: string; size: "regular" | "large"; quantity: number };
@@ -51,8 +52,49 @@ export function MenuApp() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>("menu");
-  const [stampQrRequest, setStampQrRequest] = useState(0);
+  const [isStampQrOpen, setIsStampQrOpen] = useState(false);
+  const [stampUrl, setStampUrl] = useState<string | null>(null);
+  const [stampQrImage, setStampQrImage] = useState<string | null>(null);
+  const [stampQrLoading, setStampQrLoading] = useState(false);
+  const [stampQrError, setStampQrError] = useState<string | null>(null);
   const tg = useTelegramWebApp();
+
+  const handleOpenStampQr = async () => {
+    setIsStampQrOpen(true);
+    setStampQrError(null);
+
+    if (!tg?.initData) {
+      setStampQrError("បើក Mini App ក្នុង Telegram ដើម្បីបង្ហាញ QR");
+      return;
+    }
+
+    if (stampUrl && stampQrImage) return;
+    setStampQrLoading(true);
+
+    try {
+      const response = await fetch("/api/loyalty/stamp-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData: tg.initData }),
+      });
+      const data = (await response.json()) as { stampUrl?: string; error?: string };
+      if (!response.ok || !data.stampUrl) {
+        throw new Error(data.error || "មិនអាចបង្កើត QR បានទេ");
+      }
+
+      setStampUrl(data.stampUrl);
+      const imageUrl = await QRCode.toDataURL(data.stampUrl, {
+        width: 280,
+        margin: 2,
+        color: { dark: "#241A15", light: "#FFFFFF" },
+      });
+      setStampQrImage(imageUrl);
+    } catch (error) {
+      setStampQrError(error instanceof Error ? error.message : "មិនអាចបង្កើត QR បានទេ");
+    } finally {
+      setStampQrLoading(false);
+    }
+  };
 
   // Support ?tab=loyalty or #loyalty
   useEffect(() => {
@@ -252,10 +294,7 @@ export function MenuApp() {
         onOpenPdf={() => setIsPdfModalOpen(true)}
         onOpenStampQr={
           loyaltyEnabled
-            ? () => {
-                setActiveTab("loyalty");
-                setStampQrRequest((request) => request + 1);
-              }
+            ? () => void handleOpenStampQr()
             : undefined
         }
         showSearch={activeTab === "menu"}
@@ -385,7 +424,6 @@ export function MenuApp() {
         <main className="flex-1 max-w-6xl w-full mx-auto">
           <LoyaltyCardView
             telegram={tg}
-            openQrRequest={stampQrRequest}
             onGoToMenu={() => setActiveTab("menu")}
           />
         </main>
@@ -422,6 +460,61 @@ export function MenuApp() {
         isOpen={isPdfModalOpen}
         onClose={() => setIsPdfModalOpen(false)}
       />
+
+      {isStampQrOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-5"
+          role="dialog"
+          aria-modal="true"
+          aria-label="QR សម្រាប់បោះត្រា"
+          onClick={() => setIsStampQrOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl bg-white p-5 text-center shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setIsStampQrOpen(false)}
+              aria-label="បិទ QR"
+              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-stone-200 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-stone-800 mb-4 pr-8">
+              <QrCode className="w-5 h-5 text-[#8E583C]" />
+              <span>QR សម្រាប់បោះត្រា</span>
+            </div>
+
+            <div className="mx-auto w-fit p-3 bg-stone-50 rounded-2xl border border-stone-200">
+              {stampQrImage ? (
+                <img
+                  src={stampQrImage}
+                  alt="Barista Stamp QR"
+                  width={280}
+                  height={280}
+                  className="block w-[280px] h-[280px] max-w-full rounded-xl"
+                />
+              ) : (
+                <div className="w-[280px] h-[280px] max-w-full rounded-xl flex items-center justify-center">
+                  {stampQrError ? (
+                    <p className="px-6 text-xs leading-relaxed text-red-600 font-khmer">
+                      {stampQrError}
+                    </p>
+                  ) : stampQrLoading ? (
+                    <div className="w-8 h-8 border-3 border-[#8E583C] border-t-transparent rounded-full animate-spin" />
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-stone-500 mt-4 font-khmer">
+              សូមអោយបារីស្តាស្កេន QR នេះ
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Fixed Bottom Navigation (Menu / Loyalty) */}
       <BottomNav

@@ -57,9 +57,9 @@ export function Header({
                 type="button"
                 onClick={onOpenStampQr}
                 aria-label="បង្ហាញ QR សម្រាប់បោះត្រា"
-                className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white bg-[#8E583C] hover:bg-[#73432B] shadow-xs transition-colors"
+                className="fixed top-3 right-3 z-40 inline-flex items-center justify-center w-11 h-11 rounded-full text-white bg-[#8E583C] hover:bg-[#73432B] shadow-lg shadow-[#8E583C]/25 transition-colors"
               >
-                <QrCode className="w-4 h-4" />
+                <QrCode className="w-5 h-5" />
               </button>
             )}
 
