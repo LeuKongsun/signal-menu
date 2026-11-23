@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Search, X, FileText, Coffee } from "lucide-react";
+import { Search, X, FileText, Coffee, QrCode } from "lucide-react";
 
 interface HeaderProps {
   searchQuery: string;
@@ -9,6 +9,7 @@ interface HeaderProps {
   currencyMode: "both" | "usd" | "khr";
   onCurrencyChange: (mode: "both" | "usd" | "khr") => void;
   onOpenPdf: () => void;
+  onOpenStampQr?: () => void;
   showSearch?: boolean;
 }
 
@@ -18,6 +19,7 @@ export function Header({
   currencyMode,
   onCurrencyChange,
   onOpenPdf,
+  onOpenStampQr,
   showSearch = true,
 }: HeaderProps) {
   return (
@@ -50,6 +52,17 @@ export function Header({
 
           {/* Right Action buttons: Currency & PDF */}
           <div className="flex items-center gap-2 flex-wrap">
+            {onOpenStampQr && (
+              <button
+                type="button"
+                onClick={onOpenStampQr}
+                aria-label="បង្ហាញ QR សម្រាប់បោះត្រា"
+                className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-white bg-[#8E583C] hover:bg-[#73432B] shadow-xs transition-colors"
+              >
+                <QrCode className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Currency selector */}
             <div className="flex items-center bg-white rounded-xl p-1 border border-stone-200/80 shadow-xs text-xs font-bold text-stone-600 font-khmer">
               <button

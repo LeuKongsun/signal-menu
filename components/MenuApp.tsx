@@ -51,6 +51,7 @@ export function MenuApp() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>("menu");
+  const [stampQrRequest, setStampQrRequest] = useState(0);
   const tg = useTelegramWebApp();
 
   // Support ?tab=loyalty or #loyalty
@@ -249,6 +250,14 @@ export function MenuApp() {
         currencyMode={currencyMode}
         onCurrencyChange={setCurrencyMode}
         onOpenPdf={() => setIsPdfModalOpen(true)}
+        onOpenStampQr={
+          loyaltyEnabled
+            ? () => {
+                setActiveTab("loyalty");
+                setStampQrRequest((request) => request + 1);
+              }
+            : undefined
+        }
         showSearch={activeTab === "menu"}
       />
 
@@ -376,6 +385,7 @@ export function MenuApp() {
         <main className="flex-1 max-w-6xl w-full mx-auto">
           <LoyaltyCardView
             telegram={tg}
+            openQrRequest={stampQrRequest}
             onGoToMenu={() => setActiveTab("menu")}
           />
         </main>

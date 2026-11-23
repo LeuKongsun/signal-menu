@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import type { TelegramWebApp } from "@/lib/useTelegramWebApp";
 import { Coffee, Gift, QrCode, X } from "lucide-react";
+import QRCode from "qrcode";
 
 interface LoyaltyCardData {
   telegramName: string;
@@ -19,14 +20,16 @@ const STAMPS_FOR_FREE = 10;
 
 interface LoyaltyCardViewProps {
   telegram: TelegramWebApp | null;
+  openQrRequest?: number;
   onGoToMenu?: () => void;
 }
 
-export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) {
+export function LoyaltyCardView({ telegram, openQrRequest = 0, onGoToMenu }: LoyaltyCardViewProps) {
   const [card, setCard] = useState<LoyaltyCardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isReadyTimeout, setIsReadyTimeout] = useState(false);
-  const [isQrOpen, setIsQrOpen] = useState(false);
+  const [dismissedQrRequest, setDismissedQrRequest] = useState(0);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
 
   // If opened outside Telegram, give the script 2.5 seconds to load before showing fallback
   useEffect(() => {
@@ -52,6 +55,30 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
       })
       .catch(() => setError("មានបញ្ហា សូមសាកល្បងម្ដងទៀត"));
   }, [telegram?.initData]);
+
+  useEffect(() => {
+    if (!card?.stampUrl) return;
+    let cancelled = false;
+
+    QRCode.toDataURL(card.stampUrl, {
+      width: 280,
+      margin: 2,
+      color: {
+        dark: "#241A15",
+        light: "#FFFFFF",
+      },
+    })
+      .then((url) => {
+        if (!cancelled) setQrImageUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrImageUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [card?.stampUrl]);
 
   if (error) {
     return (
@@ -100,18 +127,10 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
 
   const pending = card.freeDrinksClaimed - (card.freeDrinksRedeemed ?? 0);
   const stamps = card.stamps;
+  const isQrOpen = openQrRequest > dismissedQrRequest;
 
   return (
     <div className="relative max-w-md mx-auto px-4 py-6 flex flex-col items-center gap-5 font-khmer">
-      <button
-        type="button"
-        onClick={() => setIsQrOpen(true)}
-        aria-label="បង្ហាញ QR សម្រាប់បោះត្រា"
-        className="fixed top-3 right-3 z-40 w-11 h-11 rounded-full bg-[#8E583C] text-white shadow-lg shadow-[#8E583C]/25 flex items-center justify-center hover:bg-[#73432B] active:scale-95 transition-all"
-      >
-        <QrCode className="w-5 h-5" />
-      </button>
-
       {/* Title & Customer Name */}
       <div className="text-center">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#8E583C]/10 text-[#8E583C] text-xs font-bold mb-1">
@@ -178,7 +197,7 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
           role="dialog"
           aria-modal="true"
           aria-label="QR សម្រាប់បោះត្រា"
-          onClick={() => setIsQrOpen(false)}
+          onClick={() => setDismissedQrRequest(openQrRequest)}
         >
           <div
             className="relative w-full max-w-sm rounded-3xl bg-white p-5 text-center shadow-2xl"
@@ -186,7 +205,7 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
           >
             <button
               type="button"
-              onClick={() => setIsQrOpen(false)}
+              onClick={() => setDismissedQrRequest(openQrRequest)}
               aria-label="បិទ QR"
               className="absolute top-3 right-3 w-9 h-9 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-stone-200 transition-colors"
             >
@@ -199,15 +218,19 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
             </div>
 
             <div className="mx-auto w-fit p-3 bg-stone-50 rounded-2xl border border-stone-200">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=8&data=${encodeURIComponent(
-                  card.stampUrl
-                )}`}
-                alt="Barista Stamp QR"
-                width={280}
-                height={280}
-                className="block w-[280px] h-[280px] max-w-full rounded-xl"
-              />
+              {qrImageUrl ? (
+                <img
+                  src={qrImageUrl}
+                  alt="Barista Stamp QR"
+                  width={280}
+                  height={280}
+                  className="block w-[280px] h-[280px] max-w-full rounded-xl"
+                />
+              ) : (
+                <div className="w-[280px] h-[280px] max-w-full rounded-xl flex items-center justify-center">
+                  <div className="w-8 h-8 border-3 border-[#8E583C] border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
             </div>
 
             <p className="text-xs text-stone-500 mt-4">
