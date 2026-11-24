@@ -33,18 +33,29 @@ export async function syncOnlineOrderToPos(order: {
   const url = process.env.POS_ONLINE_ORDER_SYNC_URL;
   const secret = process.env.ONLINE_ORDER_BRIDGE_SECRET;
   if (!url || !secret) throw new Error("POS online-order bridge is not configured");
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-online-order-secret": secret,
-    },
-    body: JSON.stringify(order),
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    const data = await response.json().catch(() => null) as { error?: string } | null;
-    throw new Error(data?.error || `POS online-order sync returned ${response.status}`);
+  let response: Response | null = null;
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-online-order-secret": secret,
+        },
+        body: JSON.stringify(order),
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (response.ok) break;
+      lastError = new Error(`POS online-order sync returned ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!response?.ok) {
+    if (lastError instanceof Error) throw lastError;
+    throw new Error("POS online-order sync failed");
   }
   return response.json();
 }

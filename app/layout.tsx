@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AppRealtimeProvider } from "./components/realtime-provider";
 
 export const metadata: Metadata = {
   title: "SIGNAL Cafe | Coffee & Beverage Menu (ម៉ឺនុយ)",
@@ -27,7 +28,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-[#FAF8F5] text-[#241A16] antialiased">
-        {children}
+        <AppRealtimeProvider>{children}</AppRealtimeProvider>
       </body>
     </html>
   );

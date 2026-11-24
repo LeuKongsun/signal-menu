@@ -125,8 +125,9 @@ export async function POST(req: NextRequest) {
       updatedAt: now,
     });
     const { orderNumber } = record;
+    let posSyncStatus: "synced" | "failed" | "disabled" = "disabled";
     try {
-      await syncOnlineOrderToPos({
+      const synced = await syncOnlineOrderToPos({
         orderNumber,
         idempotencyKey: `miniapp:${orderNumber}`,
         customerName: record.customerName,
@@ -139,7 +140,9 @@ export async function POST(req: NextRequest) {
         totalUsd: record.totalUsd,
         customerTelegramId: record.customerTelegram?.id ? String(record.customerTelegram.id) : undefined,
       });
+      posSyncStatus = synced ? "synced" : "disabled";
     } catch (error) {
+      posSyncStatus = "failed";
       console.error(`Could not sync online order ${orderNumber} to POS`, error);
     }
     const caption = staffOrderText(record, PENDING_STATUS_LINE);
@@ -157,6 +160,7 @@ export async function POST(req: NextRequest) {
         success: true,
         orderNumber,
         isMock: true,
+        posSyncStatus,
         message: "Order placed in development mode. Add TELEGRAM_BOT_TOKEN & TELEGRAM_CHAT_ID in .env.local to receive live Telegram alerts.",
       });
     }
@@ -266,6 +270,7 @@ export async function POST(req: NextRequest) {
       success: true,
       orderNumber,
       viaTelegram: Boolean(telegramUser),
+      posSyncStatus,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Internal server error";

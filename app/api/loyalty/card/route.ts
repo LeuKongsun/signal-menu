@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTelegramInitData } from "@/lib/telegram";
 import { ensureLoyaltyCard } from "@/lib/loyaltyStore";
-import { syncLoyaltyCardToPos } from "@/lib/loyaltyBridge";
+import { publishLoyaltyRegistration } from "@/lib/realtime";
 
 export async function POST(req: NextRequest) {
   if (process.env.NEXT_PUBLIC_LOYALTY_ENABLED !== "true") {
@@ -33,16 +33,10 @@ export async function POST(req: NextRequest) {
 
   const name = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ");
   const card = await ensureLoyaltyCard(tgUser.id, name);
-  let loyaltySync: { status: "synced" | "failed"; error?: string };
   try {
-    await syncLoyaltyCardToPos(card);
-    loyaltySync = { status: "synced" };
+    await publishLoyaltyRegistration(card);
   } catch (error) {
-    console.error("Unable to synchronize loyalty card to POS", error);
-    loyaltySync = {
-      status: "failed",
-      error: error instanceof Error ? error.message : "POS loyalty sync failed",
-    };
+    console.error("Unable to publish loyalty registration", error);
   }
 
   const origin = req.nextUrl.origin;
@@ -56,6 +50,5 @@ export async function POST(req: NextRequest) {
     freeDrinksRedeemed: card.freeDrinksRedeemed ?? 0,
     qrToken: card.qrToken,
     stampUrl,
-    loyaltySync,
   });
 }

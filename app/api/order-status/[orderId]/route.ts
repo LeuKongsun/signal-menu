@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrder } from "@/lib/orderStore";
+import { orderChannel } from "@/lib/realtime";
 
 export async function GET(
   _req: NextRequest,
@@ -36,6 +37,7 @@ export async function GET(
       abaPayment: record.abaPayment,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
+      realtimeChannel: orderChannel(record.orderNumber),
     },
     {
       headers: {

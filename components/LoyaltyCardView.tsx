@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import type { TelegramWebApp } from "@/lib/useTelegramWebApp";
 import { Coffee, Gift } from "lucide-react";
+import { useRealtime } from "@/lib/realtime-client";
+import { loyaltyChannel } from "@/lib/realtime-channels";
 
 interface LoyaltyCardData {
   telegramName: string;
@@ -12,7 +14,6 @@ interface LoyaltyCardData {
   freeDrinksRedeemed: number;
   qrToken: string;
   stampUrl: string;
-  loyaltySync?: { status: "synced" | "failed"; error?: string };
 }
 
 const STAMPS_FOR_FREE = 10;
@@ -35,22 +36,32 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch loyalty card as soon as tg.initData is available
-  useEffect(() => {
+  const loadCard = useCallback(async () => {
     if (!telegram?.initData) return;
+    try {
+      const response = await fetch("/api/loyalty/card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData: telegram.initData }),
+      });
+      const data = await response.json() as LoyaltyCardData & { error?: string };
+      if (!response.ok || data.error) throw new Error(data.error || "Unable to load loyalty card");
+      setCard(data);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "មានបញ្ហា សូមសាកល្បងម្ដងទៀត");
+    }
+  }, [telegram]);
 
-    fetch("/api/loyalty/card", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData: telegram.initData }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setError(data.error as string);
-        else setCard(data as LoyaltyCardData);
-      })
-      .catch(() => setError("មានបញ្ហា សូមសាកល្បងម្ដងទៀត"));
-  }, [telegram?.initData]);
+  useEffect(() => {
+    void Promise.resolve().then(loadCard);
+  }, [loadCard]);
+
+  useRealtime({
+    channels: card?.qrToken ? [loyaltyChannel(card.qrToken)] : [],
+    events: ["loyalty.updated"],
+    enabled: Boolean(card?.qrToken),
+    onData: () => void loadCard(),
+  });
 
   if (error) {
     return (
@@ -111,12 +122,6 @@ export function LoyaltyCardView({ telegram, onGoToMenu }: LoyaltyCardViewProps) 
         <h1 className="text-2xl font-black text-[#2A1B14]">កាតសន្សំពិន្ទុ</h1>
         <p className="text-xs text-stone-500 mt-0.5">{card.telegramName}</p>
       </div>
-
-      {card.loyaltySync?.status === "failed" ? (
-        <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-800 font-khmer">
-          កាតនេះមិនទាន់ភ្ជាប់ទៅ POS។ សូមពិនិត្យការកំណត់ Bridge រួចបើកកាតម្ដងទៀត។
-        </div>
-      ) : null}
 
       {/* Stamp Progress Card */}
       <div className="bg-white rounded-3xl shadow-sm border border-stone-200/70 p-5 w-full">

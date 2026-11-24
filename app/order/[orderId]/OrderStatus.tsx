@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { useTelegramWebApp } from "@/lib/useTelegramWebApp";
+import { useRealtime } from "@/lib/realtime-client";
 
 type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "cancelled";
 
@@ -27,6 +28,7 @@ interface OrderData {
   abaPayment?: "unpaid" | "reported";
   createdAt: string;
   updatedAt: string;
+  realtimeChannel?: string | null;
 }
 
 const STEPS = ["បានទទួល", "កំពុងធ្វើ", "រួចរាល់"];
@@ -71,8 +73,6 @@ const STATUS_VIEW: Record<
     step: -1,
   },
 };
-
-const POLL_INTERVAL_MS = 3000;
 
 export function OrderStatusLoading() {
   return (
@@ -123,14 +123,12 @@ export function OrderStatus() {
     return () => clearTimeout(t);
   }, [fetchStatus]);
 
-  // Polling — stop when terminal state reached
-  useEffect(() => {
-    const isTerminal = order?.status === "ready" || order?.status === "cancelled";
-    if (isTerminal) return;
-
-    const timer = setInterval(fetchStatus, POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [fetchStatus, order?.status]);
+  useRealtime({
+    channels: order?.realtimeChannel ? [order.realtimeChannel] : [],
+    events: ["order.updated"],
+    enabled: Boolean(order?.realtimeChannel),
+    onData: () => void fetchStatus(),
+  });
 
   useEffect(() => {
     if (!tg) return;
