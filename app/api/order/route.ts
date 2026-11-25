@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
     try {
       const synced = await syncOnlineOrderToPos({
         orderNumber,
-        idempotencyKey: `miniapp:${orderNumber}`,
+        idempotencyKey: `miniapp:${randomUUID()}`,
         customerName: record.customerName,
         customerPhone: record.customerPhone,
         customerNotes: record.customerNotes,
