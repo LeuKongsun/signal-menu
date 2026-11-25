@@ -46,6 +46,7 @@ export function CheckoutModal({
     isMock?: boolean;
     message?: string;
     viaTelegram?: boolean;
+    posSyncStatus?: "synced" | "failed" | "disabled";
   } | null>(null);
 
   const totalCount = tray.reduce((sum, i) => sum + i.quantity, 0);
@@ -107,6 +108,7 @@ export function CheckoutModal({
         isMock: data.isMock,
         message: data.message,
         viaTelegram: data.viaTelegram,
+        posSyncStatus: data.posSyncStatus,
       });
       if (telegram?.isVersionAtLeast("6.1")) {
         telegram.HapticFeedback.notificationOccurred("success");
@@ -207,6 +209,12 @@ export function CheckoutModal({
               {completedOrder.isMock && (
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] text-left">
                   ℹ️ {completedOrder.message}
+                </div>
+              )}
+
+              {completedOrder.posSyncStatus !== "synced" && (
+                <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs text-left font-khmer">
+                  ការកុម្ម៉ង់បានទៅដល់ Telegram ប៉ុន្តែមិនទាន់បង្ហាញក្នុង POS ទេ។ សូមប្រាប់បុគ្គលិកពីលេខការកុម្ម៉ង់នេះ។
                 </div>
               )}
 

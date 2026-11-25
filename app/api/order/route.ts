@@ -48,6 +48,10 @@ interface OrderDataInput {
   items: OrderItemInput[];
 }
 
+function usdToCents(amount: number) {
+  return Math.round(amount * 100);
+}
+
 async function storeWithUniqueNumber(
   base: Omit<OrderRecord, "orderNumber">
 ): Promise<OrderRecord> {
@@ -136,9 +140,12 @@ export async function POST(req: NextRequest) {
         customerNotes: record.customerNotes,
         paymentMethod: record.paymentMethod,
         paymentStatus: record.abaPayment,
-        items: record.items,
+        items: record.items.map((item) => ({
+          ...item,
+          priceUsd: usdToCents(item.priceUsd),
+        })),
         totalRiel: record.totalRiel,
-        totalUsd: record.totalUsd,
+        totalUsd: usdToCents(record.totalUsd),
         customerTelegramId: record.customerTelegram?.id ? String(record.customerTelegram.id) : undefined,
       });
       posSyncStatus = synced ? "synced" : "disabled";
