@@ -4,6 +4,12 @@ import { ABA_ACCOUNT_NAME, ABA_PAY_LINK } from "@/lib/aba";
 
 export const PENDING_STATUS_LINE = `🔴 <b>ស្ថានភាព៖ រង់ចាំពិនិត្យ</b>`;
 
+function formatOrderAmount(order: OrderRecord, totalRiel: number, totalUsd: number) {
+  return (order.currency ?? "KHR") === "USD"
+    ? `$${totalUsd.toFixed(2)} (≈ ${totalRiel.toLocaleString("en-US")}៛)`
+    : `${totalRiel.toLocaleString("en-US")}៛ (≈ $${totalUsd.toFixed(2)})`;
+}
+
 /** Barista buttons for an order in the given status. */
 export function staffKeyboard(orderNumber: string, status: OrderStatus): InlineKeyboard {
   const cancel = { text: "❌ លុបចោល", callback_data: `cancel:${orderNumber}` };
@@ -70,7 +76,7 @@ export function staffOrderText(order: OrderRecord, statusLine: string) {
     `📋 <b>ភេសជ្ជៈ៖</b>`,
     itemsText,
     `--------------------------------`,
-    `💰 <b>សរុប៖</b> <b>${order.totalRiel.toLocaleString()} ៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
+    `💰 <b>សរុប៖</b> <b>${formatOrderAmount(order, order.totalRiel, order.totalUsd)}</b>`,
     order.customerNotes ? `\n📝 <b>ចំណាំ៖</b> <i>${escapeHtml(order.customerNotes)}</i>` : null,
     `--------------------------------`,
     `⏰ <i>ម៉ោង៖ ${timeString}</i>`,
@@ -83,7 +89,7 @@ function itemLines(order: OrderRecord) {
   return order.items
     .map(
       (i) =>
-        `• ${escapeHtml(i.nameKh || i.nameEn)}${i.size ? ` (${escapeHtml(i.size)})` : ""} ×${i.quantity} — ${i.priceRiel.toLocaleString("en-US")}៛`
+        `• ${escapeHtml(i.nameKh || i.nameEn)}${i.size ? ` (${escapeHtml(i.size)})` : ""} ×${i.quantity} — ${(order.currency ?? "KHR") === "USD" ? `$${i.priceUsd.toFixed(2)}` : `${i.priceRiel.toLocaleString("en-US")}៛`}`
     )
     .join("\n");
 }
@@ -131,7 +137,7 @@ export function customerReceiptText(order: OrderRecord, { withItems = true } = {
     progressLine(order.status),
     ``,
     ...(withItems ? [itemLines(order), ``] : []),
-    `<b>សរុប៖ ${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`,
+    `<b>សរុប៖ ${formatOrderAmount(order, order.totalRiel, order.totalUsd)}</b>`,
     `ការទូទាត់៖ ${paymentText}`,
   ].join("\n");
 }
@@ -154,7 +160,7 @@ export function customerReceiptKeyboard(
 }
 
 function amountLine(order: OrderRecord) {
-  return `ចំនួនទឹកប្រាក់៖ <b>${order.totalRiel.toLocaleString("en-US")}៛</b> (≈ $${order.totalUsd.toFixed(2)})`;
+  return `ចំនួនទឹកប្រាក់៖ <b>${formatOrderAmount(order, order.totalRiel, order.totalUsd)}</b>`;
 }
 
 /** Caption of the ABA QR the bot sends after an ABA order. */

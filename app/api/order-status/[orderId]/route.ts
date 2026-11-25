@@ -30,6 +30,7 @@ export async function GET(
       orderNumber: record.orderNumber,
       customerName: record.customerName,
       status: record.status,
+      currency: record.currency ?? "KHR",
       items: record.items,
       totalRiel: record.totalRiel,
       totalUsd: record.totalUsd,

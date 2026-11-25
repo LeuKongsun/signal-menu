@@ -39,6 +39,7 @@ export function CheckoutModal({
   const [paymentMethod, setPaymentMethod] = useState<"aba" | "cash">(
     abaAvailable ? "aba" : "cash"
   );
+  const [cashCurrency, setCashCurrency] = useState<"KHR" | "USD">("KHR");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [completedOrder, setCompletedOrder] = useState<{
@@ -47,11 +48,16 @@ export function CheckoutModal({
     message?: string;
     viaTelegram?: boolean;
     posSyncStatus?: "synced" | "failed" | "disabled";
+    currency?: "KHR" | "USD";
   } | null>(null);
 
   const totalCount = tray.reduce((sum, i) => sum + i.quantity, 0);
   const totalUsd = tray.reduce((sum, i) => sum + i.price.usd * i.quantity, 0);
   const totalRiel = tray.reduce((sum, i) => sum + i.price.riel * i.quantity, 0);
+  const orderCurrency = paymentMethod === "aba" ? "KHR" : cashCurrency;
+  const orderTotal = orderCurrency === "KHR"
+    ? `${totalRiel.toLocaleString()}៛`
+    : `$${totalUsd.toFixed(2)}`;
 
   if (!isOpen) return null;
 
@@ -71,6 +77,7 @@ export function CheckoutModal({
         customerPhone: customerPhone.trim(),
         customerNotes: customerNotes.trim(),
         paymentMethod,
+        currency: orderCurrency,
         totalRiel,
         totalUsd,
         items: tray.map((t) => ({
@@ -109,6 +116,7 @@ export function CheckoutModal({
         message: data.message,
         viaTelegram: data.viaTelegram,
         posSyncStatus: data.posSyncStatus,
+        currency: data.currency,
       });
       if (telegram?.isVersionAtLeast("6.1")) {
         telegram.HapticFeedback.notificationOccurred("success");
@@ -149,7 +157,7 @@ export function CheckoutModal({
               <p className="text-xs text-stone-500 font-khmer">
                 {completedOrder
                   ? "ការកុម្ម៉ង់បានជោគជ័យ"
-                  : `សរុប ${totalCount} កែវ • ${totalRiel.toLocaleString()}៛`}
+                  : `សរុប ${totalCount} កែវ • ${orderTotal}`}
               </p>
             </div>
           </div>
@@ -195,7 +203,9 @@ export function CheckoutModal({
                 <div className="flex justify-between text-stone-600 font-khmer">
                   <span>សរុប៖</span>
                   <span className="font-bold text-[#8E583C]">
-                    {totalRiel.toLocaleString()} ៛ (${totalUsd.toFixed(2)})
+                    {completedOrder.currency === "USD"
+                      ? `$${totalUsd.toFixed(2)} (≈ ${totalRiel.toLocaleString()} ៛)`
+                      : `${totalRiel.toLocaleString()} ៛ (≈ $${totalUsd.toFixed(2)})`}
                   </span>
                 </div>
                 <div className="flex justify-between text-stone-600 font-khmer">
@@ -386,6 +396,36 @@ export function CheckoutModal({
                 )}
               </div>
 
+              {paymentMethod === "cash" && (
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-stone-700 font-khmer">រូបិយប័ណ្ណទូទាត់</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["KHR", "USD"] as const).map((currency) => {
+                      const selected = cashCurrency === currency;
+                      const amount = currency === "KHR"
+                        ? `${totalRiel.toLocaleString()} ៛`
+                        : `$${totalUsd.toFixed(2)}`;
+                      return (
+                        <button
+                          key={currency}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setCashCurrency(currency)}
+                          className={`rounded-xl border p-3 text-left transition-all ${
+                            selected
+                              ? "border-[#8E583C] bg-amber-50/50 ring-1 ring-[#8E583C]"
+                              : "border-stone-200 hover:bg-stone-50"
+                          }`}
+                        >
+                          <span className="block text-xs font-bold">{currency}</span>
+                          <span className="mt-1 block text-sm font-semibold">{amount}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {paymentMethod === "aba" ? (
                 <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-stone-200 text-xs text-stone-700 space-y-1 font-khmer">
                   <div className="font-bold text-sm text-stone-900 flex items-center gap-1.5">
@@ -404,7 +444,7 @@ export function CheckoutModal({
                     <span>ទូទាត់ផ្ទាល់នៅបញ្ជរ</span>
                   </div>
                   <p>
-                    សូមទូទាត់ប្រាក់ចំនួន <strong>{totalRiel.toLocaleString()} ៛</strong> (${totalUsd.toFixed(2)}) ជូនបារីស្តាពេលមកទទួលភេសជ្ជៈ។
+                    សូមទូទាត់ប្រាក់ចំនួន <strong>{orderTotal}</strong> ជូនបារីស្តាពេលមកទទួលភេសជ្ជៈ។
                   </p>
                 </div>
               )}
@@ -422,7 +462,7 @@ export function CheckoutModal({
                       <span>កំពុងផ្ញើ...</span>
                     </>
                   ) : (
-                    <span>{`កុម្ម៉ង់ឥឡូវនេះ • ${totalRiel.toLocaleString()}៛`}</span>
+                    <span>{`កុម្ម៉ង់ឥឡូវនេះ • ${orderTotal}`}</span>
                   )}
                 </button>
               </div>

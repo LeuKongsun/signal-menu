@@ -43,12 +43,17 @@ interface OrderDataInput {
   customerPhone?: string;
   customerNotes?: string;
   paymentMethod: "aba" | "cash";
+  currency?: "KHR" | "USD";
   totalRiel: number;
   totalUsd: number;
   items: OrderItemInput[];
 }
 
 function usdToCents(amount: number) {
+  return Math.round(amount * 100);
+}
+
+function rielToCents(amount: number) {
   return Math.round(amount * 100);
 }
 
@@ -79,6 +84,10 @@ export async function POST(req: NextRequest) {
     }
 
     const order = JSON.parse(rawOrderData) as OrderDataInput;
+    if (order.currency !== undefined && order.currency !== "KHR" && order.currency !== "USD") {
+      return NextResponse.json({ success: false, error: "Invalid order currency" }, { status: 400 });
+    }
+    const currency = order.paymentMethod === "aba" ? "KHR" : order.currency ?? "KHR";
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatIds = parseTelegramChatIds(process.env.TELEGRAM_CHAT_ID);
 
@@ -109,6 +118,7 @@ export async function POST(req: NextRequest) {
 
     const now = new Date().toISOString();
     const record = await storeWithUniqueNumber({
+      currency,
       customerName: order.customerName,
       customerPhone: order.customerPhone || undefined,
       customerNotes: order.customerNotes || undefined,
@@ -140,11 +150,13 @@ export async function POST(req: NextRequest) {
         customerNotes: record.customerNotes,
         paymentMethod: record.paymentMethod,
         paymentStatus: record.abaPayment,
+        currency,
         items: record.items.map((item) => ({
           ...item,
+          priceRiel: rielToCents(item.priceRiel),
           priceUsd: usdToCents(item.priceUsd),
         })),
-        totalRiel: record.totalRiel,
+        totalRiel: rielToCents(record.totalRiel),
         totalUsd: usdToCents(record.totalUsd),
         customerTelegramId: record.customerTelegram?.id ? String(record.customerTelegram.id) : undefined,
       });
@@ -167,6 +179,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         orderNumber,
+        currency: record.currency,
         isMock: true,
         posSyncStatus,
         message: "Order placed in development mode. Add TELEGRAM_BOT_TOKEN & TELEGRAM_CHAT_ID in .env.local to receive live Telegram alerts.",
@@ -277,6 +290,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       orderNumber,
+      currency: record.currency,
       viaTelegram: Boolean(telegramUser),
       posSyncStatus,
     });

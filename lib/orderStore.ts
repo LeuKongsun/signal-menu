@@ -5,6 +5,7 @@ export type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "can
 
 export interface OrderRecord {
   orderNumber: string;
+  currency?: "KHR" | "USD";
   customerName: string;
   customerPhone?: string;
   customerNotes?: string;

@@ -14,6 +14,7 @@ interface OrderData {
   orderNumber: string;
   customerName: string;
   status: OrderStatus;
+  currency?: "KHR" | "USD";
   items: Array<{
     nameKh: string;
     nameEn: string;
@@ -240,7 +241,9 @@ export function OrderStatus() {
                   </p>
                 </div>
                 <span className="shrink-0 text-sm font-semibold text-stone-800">
-                  {item.priceRiel.toLocaleString("en-US")}៛
+                  {order.currency === "USD"
+                    ? `$${item.priceUsd.toFixed(2)}`
+                    : `${item.priceRiel.toLocaleString("en-US")}៛`}
                 </span>
               </li>
             ))}
@@ -250,9 +253,11 @@ export function OrderStatus() {
             <div className="flex justify-between text-sm font-extrabold text-stone-900">
               <span>សរុប</span>
               <span className="font-sans font-bold">
-                {order.totalRiel.toLocaleString("en-US")}៛{" "}
+                {order.currency === "USD" ? `$${order.totalUsd.toFixed(2)}` : `${order.totalRiel.toLocaleString("en-US")}៛`}{" "}
                 <span className="font-semibold text-stone-400">
-                  (${order.totalUsd.toFixed(2)})
+                  {order.currency === "USD"
+                    ? `(≈ ${order.totalRiel.toLocaleString("en-US")}៛)`
+                    : `(≈ $${order.totalUsd.toFixed(2)})`}
                 </span>
               </span>
             </div>

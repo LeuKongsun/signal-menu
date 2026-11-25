@@ -13,6 +13,7 @@ export async function syncOnlineOrderToPos(order: {
   orderNumber: string;
   idempotencyKey: string;
   customerName: string;
+  currency: "KHR" | "USD";
   customerPhone?: string;
   customerNotes?: string;
   paymentMethod: "cash" | "aba";
