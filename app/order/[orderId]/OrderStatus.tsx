@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { useTelegramWebApp } from "@/lib/useTelegramWebApp";
 import { useRealtime } from "@/lib/realtime-client";
 
-type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "cancelled";
+type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
 
 interface OrderData {
   found: boolean;
@@ -64,6 +64,13 @@ const STATUS_VIEW: Record<
     title: "រួចរាល់ហើយ!",
     titleKh: "សូមអញ្ជើញមកទទួលនៅបញ្ជរ",
     hint: "ភេសជ្ជៈរបស់អ្នករួចរាល់ហើយ",
+    step: 2,
+  },
+  completed: {
+    emoji: "✅",
+    title: "ការកុម្ម៉ង់បានបញ្ចប់",
+    titleKh: "សូមអរគុណសម្រាប់ការគាំទ្រ",
+    hint: "ការកុម្ម៉ង់នេះបានបញ្ចប់រួចរាល់",
     step: 2,
   },
   cancelled: {
@@ -175,7 +182,7 @@ export function OrderStatus() {
 
   const view = STATUS_VIEW[order.status];
   const isCancelled = order.status === "cancelled";
-  const isClosed = isCancelled || order.status === "ready";
+  const isClosed = isCancelled || order.status === "ready" || order.status === "completed";
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] pb-10">

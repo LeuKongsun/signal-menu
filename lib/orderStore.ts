@@ -1,7 +1,27 @@
 import { kvGet, kvSet } from "@/lib/kv";
 import type { OrderCopy } from "@/lib/telegram";
 
-export type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "cancelled";
+export type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
+
+export function isOrderClosed(status: OrderStatus) {
+  return status === "ready" || status === "completed" || status === "cancelled";
+}
+
+export function canAdvanceOrderStatus(current: OrderStatus, next: OrderStatus) {
+  if (current === next) return true;
+  if (current === "completed" || current === "cancelled") return false;
+  if (next === "cancelled") return true;
+
+  const rank: Record<OrderStatus, number> = {
+    pending: 0,
+    confirmed: 1,
+    preparing: 2,
+    ready: 3,
+    completed: 4,
+    cancelled: 5,
+  };
+  return rank[next] >= rank[current];
+}
 
 export interface OrderRecord {
   orderNumber: string;

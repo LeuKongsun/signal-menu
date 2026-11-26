@@ -48,6 +48,7 @@ export function CheckoutModal({
     message?: string;
     viaTelegram?: boolean;
     posSyncStatus?: "synced" | "failed" | "disabled";
+    posSyncDiagnostic?: string;
     currency?: "KHR" | "USD";
   } | null>(null);
 
@@ -116,6 +117,7 @@ export function CheckoutModal({
         message: data.message,
         viaTelegram: data.viaTelegram,
         posSyncStatus: data.posSyncStatus,
+        posSyncDiagnostic: data.posSyncDiagnostic,
         currency: data.currency,
       });
       if (telegram?.isVersionAtLeast("6.1")) {
@@ -225,6 +227,9 @@ export function CheckoutModal({
               {completedOrder.posSyncStatus !== "synced" && (
                 <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs text-left font-khmer">
                   ការកុម្ម៉ង់បានទៅដល់ Telegram ប៉ុន្តែមិនទាន់បង្ហាញក្នុង POS ទេ។ សូមប្រាប់បុគ្គលិកពីលេខការកុម្ម៉ង់នេះ។
+                  {completedOrder.posSyncDiagnostic ? (
+                    <span className="mt-1 block">កូដបញ្ហា៖ {completedOrder.posSyncDiagnostic}</span>
+                  ) : null}
                 </div>
               )}
 

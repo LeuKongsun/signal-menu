@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
     });
     const { orderNumber } = record;
     let posSyncStatus: "synced" | "failed" | "disabled" = "disabled";
+    let posSyncDiagnostic: string | undefined;
     try {
       const synced = await syncOnlineOrderToPos({
         orderNumber,
@@ -161,8 +162,17 @@ export async function POST(req: NextRequest) {
         customerTelegramId: record.customerTelegram?.id ? String(record.customerTelegram.id) : undefined,
       });
       posSyncStatus = synced ? "synced" : "disabled";
+      if (!synced) posSyncDiagnostic = "SYNC_DISABLED";
     } catch (error) {
       posSyncStatus = "failed";
+      const status = error instanceof Error
+        ? error.message.match(/POS online-order sync returned (\d{3})/)?.[1]
+        : undefined;
+      posSyncDiagnostic = status
+        ? `HTTP ${status}`
+        : error instanceof Error && error.message === "POS online-order bridge is not configured"
+          ? "BRIDGE_NOT_CONFIGURED"
+          : "CONNECTION_ERROR";
       console.error(`Could not sync online order ${orderNumber} to POS`, error);
     }
     const caption = staffOrderText(record, PENDING_STATUS_LINE);
@@ -182,6 +192,7 @@ export async function POST(req: NextRequest) {
         currency: record.currency,
         isMock: true,
         posSyncStatus,
+        posSyncDiagnostic,
         message: "Order placed in development mode. Add TELEGRAM_BOT_TOKEN & TELEGRAM_CHAT_ID in .env.local to receive live Telegram alerts.",
       });
     }
@@ -293,6 +304,7 @@ export async function POST(req: NextRequest) {
       currency: record.currency,
       viaTelegram: Boolean(telegramUser),
       posSyncStatus,
+      posSyncDiagnostic,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Internal server error";

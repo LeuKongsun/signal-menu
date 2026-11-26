@@ -11,6 +11,8 @@ import {
   type OrderCopy,
 } from "@/lib/telegram";
 import {
+  canAdvanceOrderStatus,
+  isOrderClosed,
   getOrder,
   saveOrder,
   type OrderStatus,
@@ -25,6 +27,7 @@ import {
   PENDING_STATUS_LINE,
   staffKeyboard,
   staffOrderText,
+  staffStatusLine,
 } from "@/lib/orderMessages";
 import { renderStatusCard, type StatusCard } from "@/lib/statusCard";
 import {
@@ -60,7 +63,7 @@ async function handleAbaPaid(
     await answerCallbackQuery(botToken, callbackQuery.id, "រកមិនឃើញការកុម្ម៉ង់នេះទេ។");
     return;
   }
-  if (record.status === "cancelled" || record.status === "ready") {
+  if (isOrderClosed(record.status)) {
     await answerCallbackQuery(botToken, callbackQuery.id, `ការកុម្ម៉ង់ #${orderNumber} ត្រូវបានបិទរួចហើយ។`);
     return;
   }
@@ -212,11 +215,6 @@ export async function POST(req: NextRequest) {
     }
 
     const data = callbackQuery.data as string; // e.g. "confirm:SIG-1048"
-    const staffName =
-      callbackQuery.from.first_name ||
-      callbackQuery.from.username ||
-      "Barista";
-
     const message = callbackQuery.message;
     if (!message) {
       return NextResponse.json({ ok: true });
@@ -239,7 +237,7 @@ export async function POST(req: NextRequest) {
     }
 
     const record = await getOrder(orderNumber);
-    if (record && (record.status === "ready" || record.status === "cancelled")) {
+    if (record && isOrderClosed(record.status)) {
       await answerCallbackQuery(
         botToken,
         callbackId,
@@ -247,19 +245,20 @@ export async function POST(req: NextRequest) {
       );
       return NextResponse.json({ ok: true, ignored: "Order already closed" });
     }
+    if (record && !canAdvanceOrderStatus(record.status, nextStatus)) {
+      await answerCallbackQuery(botToken, callbackId, "ស្ថានភាពការកុម្ម៉ង់នេះបានផ្លាស់ប្តូររួចហើយ។");
+      return NextResponse.json({ ok: true, ignored: "Order status already advanced" });
+    }
 
-    let newStatusText = "";
+    const newStatusText = staffStatusLine(nextStatus);
     let alertPopup = "";
     const newKeyboard = staffKeyboard(orderNumber, nextStatus);
 
     if (action === "confirm") {
-      newStatusText = `🟡 <b>ស្ថានភាព៖ កំពុងធ្វើ (បញ្ជាក់ដោយ ${escapeHtml(staffName)})</b>`;
       alertPopup = `ការកុម្ម៉ង់ #${orderNumber} បានបញ្ជាក់! កំពុងធ្វើភេសជ្ជៈ...`;
     } else if (action === "pickup") {
-      newStatusText = `🟢 <b>ស្ថានភាព៖ រួចរាល់ / បានទទួល (ដោយ ${escapeHtml(staffName)})</b>`;
       alertPopup = `ការកុម្ម៉ង់ #${orderNumber} រួចរាល់! 🎉`;
     } else {
-      newStatusText = `❌ <b>ស្ថានភាព៖ បានលុបចោល (ដោយ ${escapeHtml(staffName)})</b>`;
       alertPopup = `ការកុម្ម៉ង់ #${orderNumber} ត្រូវបានលុបចោល។`;
     }
 
@@ -332,7 +331,7 @@ export async function POST(req: NextRequest) {
 
       // Take the pay buttons off the ABA QR once the order is closed
       const payment = record.paymentMessage;
-      if (payment && (record.status === "ready" || record.status === "cancelled")) {
+      if (payment && isOrderClosed(record.status)) {
         await editOrderMessage(
           botToken,
           { chatId: customerChatId, ...payment },

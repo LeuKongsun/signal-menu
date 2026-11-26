@@ -4,6 +4,22 @@ import { ABA_ACCOUNT_NAME, ABA_PAY_LINK } from "@/lib/aba";
 
 export const PENDING_STATUS_LINE = `🔴 <b>ស្ថានភាព៖ រង់ចាំពិនិត្យ</b>`;
 
+export function staffStatusLine(status: OrderStatus) {
+  switch (status) {
+    case "pending":
+      return PENDING_STATUS_LINE;
+    case "confirmed":
+    case "preparing":
+      return `🟡 <b>ស្ថានភាព៖ កំពុងធ្វើភេសជ្ជៈ</b>`;
+    case "ready":
+      return `🟢 <b>ស្ថានភាព៖ ភេសជ្ជៈរួចរាល់</b>`;
+    case "completed":
+      return `✅ <b>ស្ថានភាព៖ បានបញ្ចប់</b>`;
+    case "cancelled":
+      return `❌ <b>ស្ថានភាព៖ បានលុបចោល</b>`;
+  }
+}
+
 function formatOrderAmount(order: OrderRecord, totalRiel: number, totalUsd: number) {
   return (order.currency ?? "KHR") === "USD"
     ? `$${totalUsd.toFixed(2)} (≈ ${totalRiel.toLocaleString("en-US")}៛)`
@@ -99,6 +115,7 @@ const RECEIPT_HEADLINES: Record<OrderStatus, [string, string]> = {
   confirmed: ["☕ កំពុងធ្វើភេសជ្ជៈ", "បារីស្តាកំពុងរៀបចំជូនអ្នក"],
   preparing: ["☕ កំពុងធ្វើភេសជ្ជៈ", "បារីស្តាកំពុងរៀបចំជូនអ្នក"],
   ready: ["🎉 ភេសជ្ជៈរួចរាល់ហើយ!", "សូមអញ្ជើញមកទទួលនៅបញ្ជរ"],
+  completed: ["✅ ការកុម្ម៉ង់បានបញ្ចប់", "សូមអរគុណសម្រាប់ការគាំទ្រ"],
   cancelled: ["❌ ការកុម្ម៉ង់ត្រូវបានលុបចោល", "សូមទាក់ទងមកកាន់បារីស្តា"],
 };
 
@@ -108,6 +125,7 @@ const PROGRESS_INDEX: Record<OrderStatus, number> = {
   confirmed: 1,
   preparing: 1,
   ready: 2,
+  completed: 2,
   cancelled: -1,
 };
 
@@ -146,7 +164,7 @@ export function customerReceiptKeyboard(
   order: OrderRecord,
   origin: string
 ): InlineKeyboard {
-  const isClosed = order.status === "ready" || order.status === "cancelled";
+  const isClosed = order.status === "ready" || order.status === "completed" || order.status === "cancelled";
   const button = isClosed
     ? {
         text: "☕ កុម្ម៉ង់ម្ដងទៀត",
@@ -180,12 +198,12 @@ export function abaPaymentText(order: OrderRecord) {
       `ABA: ${escapeHtml(ABA_ACCOUNT_NAME)} · ចំណាំ <code>${n}</code>`,
       ``,
       `សូមអរគុណ! បារីស្តានឹងពិនិត្យការទូទាត់ជូន។`,
-      ...(order.status === "ready"
+      ...(order.status === "ready" || order.status === "completed"
         ? []
         : [`បើមិនទាន់បង់ទេ សូមចុច <b>«បើក ABA ដើម្បីបង់»</b> ខាងក្រោម។`]),
     ].join("\n");
   }
-  if (order.status === "ready") {
+  if (order.status === "ready" || order.status === "completed") {
     return [`💳 <b>ទូទាត់ប្រាក់ #${n}</b>`, amountLine(order)].join("\n");
   }
   return [
@@ -200,7 +218,7 @@ export function abaPaymentText(order: OrderRecord) {
 }
 
 export function abaPaymentKeyboard(order: OrderRecord, origin: string): InlineKeyboard {
-  const isClosed = order.status === "ready" || order.status === "cancelled";
+  const isClosed = order.status === "ready" || order.status === "completed" || order.status === "cancelled";
   const payLink = [{ text: "💳 បើក ABA ដើម្បីបង់", url: ABA_PAY_LINK }];
   if (order.abaPayment === "unpaid" && !isClosed) {
     return {
@@ -216,10 +234,14 @@ export function abaPaymentKeyboard(order: OrderRecord, origin: string): InlineKe
 }
 
 const STATUS_ALERTS: Partial<Record<OrderStatus, (n: string) => string>> = {
+  confirmed: (n) =>
+    `☕ <b>ការកុម្ម៉ង់ #${n} បានបញ្ជាក់!</b>\nបារីស្តានឹងចាប់ផ្ដើមរៀបចំភេសជ្ជៈជូនអ្នក។`,
   preparing: (n) =>
     `☕ <b>ការកុម្ម៉ង់ #${n} បានបញ្ជាក់!</b>\nបារីស្តាកំពុងរៀបចំភេសជ្ជៈជូនអ្នក។`,
   ready: (n) =>
     `🎉 <b>ការកុម្ម៉ង់ #${n} រួចរាល់ហើយ!</b>\nសូមអញ្ជើញមកទទួលភេសជ្ជៈនៅបញ្ជរ។`,
+  completed: (n) =>
+    `✅ <b>ការកុម្ម៉ង់ #${n} បានបញ្ចប់រួចរាល់។</b>\nសូមអរគុណសម្រាប់ការគាំទ្រ។`,
   cancelled: (n) =>
     `❌ <b>ការកុម្ម៉ង់ #${n} ត្រូវបានលុបចោល។</b>\nសូមទាក់ទងមកកាន់បុគ្គលិកប្រសិនបើមានចម្ងល់។`,
 };
