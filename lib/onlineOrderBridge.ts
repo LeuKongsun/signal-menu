@@ -46,7 +46,7 @@ export async function syncOnlineOrderToPos(order: {
         },
         body: JSON.stringify(order),
         cache: "no-store",
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(5_000),
       });
       if (response.ok) break;
       lastError = new Error(`POS online-order sync returned ${response.status}`);

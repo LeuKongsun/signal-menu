@@ -452,6 +452,7 @@ export function MenuApp() {
           tray={tray}
           onOrderSuccess={() => setTray([])}
           telegram={tg}
+          currencyMode={currencyMode}
         />
       )}
 
