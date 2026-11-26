@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import {
   answerCallbackQuery,
   deleteTelegramMessage,
@@ -38,6 +38,7 @@ import {
   loyaltyCardKeyboard,
   loyaltyCardText,
 } from "@/lib/loyaltyMessages";
+import { syncOnlineOrderStatusToPos } from "@/lib/onlineOrderBridge";
 
 const ACTION_STATUS: Record<string, OrderStatus> = {
   confirm: "preparing",
@@ -268,6 +269,12 @@ export async function POST(req: NextRequest) {
       record.updatedAt = new Date().toISOString();
       await saveOrder(record);
     }
+
+    after(() =>
+      syncOnlineOrderStatusToPos(orderNumber, nextStatus).catch((err) =>
+        console.error(`Could not sync status ${nextStatus} for ${orderNumber} to POS:`, err)
+      )
+    );
 
     // 1. Answer Telegram's callback query (shows notification banner/alert to staff)
     await answerCallbackQuery(botToken, callbackId, alertPopup);

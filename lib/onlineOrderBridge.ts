@@ -60,3 +60,39 @@ export async function syncOnlineOrderToPos(order: {
   }
   return response.json();
 }
+
+export async function syncOnlineOrderStatusToPos(
+  orderNumber: string,
+  status: "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled"
+) {
+  if (process.env.NEXT_PUBLIC_ONLINE_ORDERING_ENABLED !== "true") return null;
+  const url = process.env.POS_ONLINE_ORDER_SYNC_URL;
+  const secret = process.env.ONLINE_ORDER_BRIDGE_SECRET;
+  if (!url || !secret) throw new Error("POS online-order bridge is not configured");
+
+  let response: Response | null = null;
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      response = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-online-order-secret": secret,
+        },
+        body: JSON.stringify({ orderNumber, status }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (response.ok) break;
+      lastError = new Error(`POS online-order status sync returned ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!response?.ok) {
+    if (lastError instanceof Error) throw lastError;
+    throw new Error("POS online-order status sync failed");
+  }
+  return response.json();
+}
