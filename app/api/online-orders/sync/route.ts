@@ -17,7 +17,8 @@ import {
   staffOrderText,
   staffStatusLine,
 } from "@/lib/orderMessages";
-import { editOrderMessage, sendTelegramText } from "@/lib/telegram";
+import { editOrderMessage, sendOrderMessage } from "@/lib/telegram";
+import { renderStatusCard, type StatusCard } from "@/lib/statusCard";
 
 const statusSchema = z.object({
   orderNumber: z.string().regex(/^SIG-\d{4}$/),
@@ -79,7 +80,32 @@ export async function POST(request: NextRequest) {
 
     if (statusChanged && record.customerTelegram) {
       const text = customerStatusText(record);
-      if (text) await sendTelegramText(botToken, record.customerTelegram.id, text);
+      if (text) {
+        let card: StatusCard | null = null;
+        if (record.status === "preparing" || record.status === "ready") {
+          try {
+            card = await renderStatusCard(record, record.status);
+          } catch (err) {
+            console.error(`Could not render status card for ${record.orderNumber}:`, err);
+          }
+        }
+        const sent = await sendOrderMessage({
+          botToken,
+          chatId: String(record.customerTelegram.id),
+          text,
+          photo: card
+            ? {
+                bytes: card.bytes,
+                name: `${record.orderNumber}-${record.status}.${card.extension}`,
+                type: card.type,
+              }
+            : null,
+          replyToMessageId: record.customerReceipt?.messageId,
+        });
+        if (!sent.ok) {
+          console.warn(`Could not notify customer for ${record.orderNumber}:`, sent.description);
+        }
+      }
     }
   }
 
